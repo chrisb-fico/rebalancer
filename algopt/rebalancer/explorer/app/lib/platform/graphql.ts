@@ -27,7 +27,11 @@
 
 import {NextResponse} from 'next/server';
 
-export function createGraphQLHandler() {
+export function createGraphQLHandler(_config?: {
+  // Accepted for API parity with @nest/interngraph's createGraphQLHandler.
+  // The OSS build has no GraphQL backend, so auth options are ignored here.
+  useOAuthToken?: boolean;
+}) {
   return async function POST(): Promise<NextResponse> {
     return NextResponse.json(
       {errors: [{message: 'GraphQL is not available in the OSS build.'}]},

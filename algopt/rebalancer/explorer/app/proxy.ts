@@ -1,6 +1,7 @@
 import {createAuthMiddleware} from '@platform/auth-middleware';
 
 export default createAuthMiddleware({
+  useOIDC: true,
   publicRoutes: [
     '/',
     '/api/health',

@@ -27,7 +27,12 @@
 
 import {NextResponse, type NextRequest} from 'next/server';
 
-export function createAuthMiddleware(_options?: {publicRoutes?: string[]}) {
+export function createAuthMiddleware(_options?: {
+  // Accepted for API parity with @nest/intern-auth's createAuthMiddleware.
+  // The OSS build enforces no SSO, so OIDC options are ignored here.
+  useOIDC?: true;
+  publicRoutes?: string[];
+}) {
   return function middleware(_request: NextRequest): NextResponse {
     return NextResponse.next();
   };
