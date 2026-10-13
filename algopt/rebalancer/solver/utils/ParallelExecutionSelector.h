@@ -21,13 +21,14 @@
 #include <cstdint>
 #include <optional>
 #include <string_view>
+#include <thread>
 
 namespace facebook::rebalancer {
 
 // Chooses sliding-window or batching execution for one move type. Under AUTO,
 // it alternates the two strategies on the first evaluation calls and then keeps
-// the one with higher evaluation throughput. Only the owning solver thread may
-// call it; worker threads never see it.
+// the one with higher evaluation throughput. Only the solver thread that built
+// it may call record(); worker threads never see it.
 class ParallelExecutionSelector {
  public:
   enum class Strategy {
@@ -53,7 +54,8 @@ class ParallelExecutionSelector {
   bool isExploring() const {
     return experiment_.has_value();
   }
-  // Records an evaluation call that ran with the current strategy().
+  // Records an evaluation call that ran with the current strategy(). Throws if
+  // called from any thread other than the one that built the selector.
   void record(const Observation& observation, std::string_view moveTypeName);
 
  private:
@@ -75,6 +77,7 @@ class ParallelExecutionSelector {
   Strategy strategy_ = Strategy::SlidingWindow;
   BatchingExecutionOptions batchingOptions_;
   std::optional<Experiment> experiment_;
+  std::thread::id ownerThread_ = std::this_thread::get_id();
 };
 
 } // namespace facebook::rebalancer

@@ -18,6 +18,7 @@
 
 #include <array>
 #include <cstddef>
+#include <future>
 #include <optional>
 #include <stdexcept>
 #include <utility>
@@ -187,6 +188,19 @@ TEST(ParallelExecutionSelectorTest, AutoEmptySamplesNeverStarveAStrategy) {
         "test");
   }
 
+  EXPECT_EQ(selector.strategy(), Strategy::Batching);
+}
+
+TEST(ParallelExecutionSelectorTest, RejectsRecordFromAnotherThread) {
+  ParallelExecutionSelector selector(autoConfig());
+
+  auto recordElsewhere = std::async(std::launch::async, [&selector] {
+    selector.record({.evaluations = 1'000, .durationSecs = 1.0}, "test");
+  });
+
+  EXPECT_THROW(recordElsewhere.get(), std::logic_error);
+  EXPECT_EQ(selector.strategy(), Strategy::SlidingWindow);
+  selector.record({.evaluations = 1'000, .durationSecs = 1.0}, "test");
   EXPECT_EQ(selector.strategy(), Strategy::Batching);
 }
 

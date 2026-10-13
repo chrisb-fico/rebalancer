@@ -114,6 +114,12 @@ ParallelExecutionSelector::ParallelExecutionSelector(
 void ParallelExecutionSelector::record(
     const Observation& observation,
     const std::string_view moveTypeName) {
+  if (std::this_thread::get_id() != ownerThread_) {
+    throw std::logic_error(
+        fmt::format(
+            "AUTO parallel execution recorded off the thread that built the selector: moveType={}",
+            moveTypeName));
+  }
   if (!experiment_ || observation.evaluations <= 0 ||
       observation.durationSecs <= 0) {
     return;
