@@ -43,6 +43,11 @@ class ExpressionTestsBase : public ::testing::Test,
       const std::string& containerName = "container")
       : UniverseBuilderTestUtils(objectName, containerName) {}
 
+  // Starts from the universe's initial assignment and applies these overrides.
+  Assignment makeAssignmentWithOverrides(
+      const PackerMap<entities::ObjectId, entities::ContainerId>&
+          objectToContainerOverrides) const;
+
   double apply(
       const ExprPtr& expr,
       const Assignment& assignment,

@@ -61,8 +61,7 @@ TEST_F(PiecewiseTest, PiecewiseNonContinuous) {
 TEST_F(PiecewiseTest, PiecewiseNonContinuousDecreasing) {
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment assignment(
-      {{container(0), {}}, {container(1), {object(1)}}});
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
 
   auto x = 2 * step(variable(object(1), container(0), universe, assignment)) +
       variable(object(1), container(1), universe, assignment) - 1;
@@ -81,8 +80,7 @@ TEST_F(PiecewiseTest, PiecewiseNonContinuousDecreasing) {
 TEST_F(PiecewiseTest, PiecewiseNonMontonic) {
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment assignment(
-      {{container(0), {}}, {container(1), {object(1)}}});
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
 
   auto x =
       2 * step(variable(object(1), container(0), universe, assignment)) + 1;
@@ -98,8 +96,7 @@ TEST_F(PiecewiseTest, PiecewiseNonMontonic) {
 TEST_F(PiecewiseTest, PiecewiseNonDecreasing) {
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment assignment(
-      {{container(0), {}}, {container(1), {object(1)}}});
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
 
   auto x =
       2 * step(variable(object(1), container(0), universe, assignment)) + 0.5;
@@ -115,8 +112,7 @@ TEST_F(PiecewiseTest, PiecewiseNonDecreasing) {
 TEST_F(PiecewiseTest, PiecewiseDecreasing) {
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment assignment(
-      {{container(0), {}}, {container(1), {object(1)}}});
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
 
   auto x =
       2 * step(variable(object(1), container(0), universe, assignment)) + 0.5;

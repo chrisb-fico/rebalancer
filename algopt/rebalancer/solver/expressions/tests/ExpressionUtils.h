@@ -130,9 +130,6 @@ getContainerToObjects(
     const PackerMap<entities::ObjectId, entities::ContainerId>&
         objectToContainer);
 
-Assignment makeAssignment(
-    PackerMap<entities::ObjectId, entities::ContainerId> objectToContainer);
-
 Assignment getModifiedAssignment(
     const Assignment& initialAssignment,
     const ChangeSet& changeSet);

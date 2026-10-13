@@ -120,8 +120,9 @@ TEST_F(MaxTest, EquivalenceSetsMax) {
   EXPECT_EQ(equivalenceSets.at(object(2)), equivalenceSets.at(object(3)));
   EXPECT_NE(equivalenceSets.at(object(1)), equivalenceSets.at(object(3)));
 
-  const Assignment assignment(
-      {{container(1), {object(1), object(2), object(3)}}});
+  const auto assignment = getModifiedAssignment(
+      initialAssignment,
+      {{object(2), container(1)}, {object(3), container(1)}});
   EXPECT_EQ(1, apply(expr, assignment));
   {
     ChangeSet changes;
@@ -144,14 +145,14 @@ TEST_F(MaxTest, Min) {
   auto A = variable(object(1), container(0), universe, initialAssignment);
   auto B = variable(object(2), container(0), universe, initialAssignment);
   auto minAB = rebalancer::min({A, B}, universe);
-  const Assignment assignment00(
-      {{container(0), {}}, {container(1), {object(1), object(2)}}});
-  const Assignment assignment01(
-      {{container(0), {object(2)}}, {container(1), {object(1)}}});
-  const Assignment assignment10(
-      {{container(0), {object(1)}}, {container(1), {object(2)}}});
-  const Assignment assignment11(
-      {{container(0), {object(1), object(2)}}, {container(1), {}}});
+  const auto assignment00 =
+      getModifiedAssignment(initialAssignment, {{object(2), container(1)}});
+  const auto assignment01 =
+      getModifiedAssignment(assignment00, {{object(2), container(0)}});
+  const auto assignment10 =
+      getModifiedAssignment(assignment00, {{object(1), container(0)}});
+  const auto assignment11 =
+      getModifiedAssignment(assignment01, {{object(1), container(0)}});
   EXPECT_EQ(0, apply(minAB, assignment00));
   EXPECT_EQ(0, apply(minAB, assignment01));
   EXPECT_EQ(0, apply(minAB, assignment10));

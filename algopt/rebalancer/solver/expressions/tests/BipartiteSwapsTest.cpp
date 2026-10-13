@@ -36,25 +36,26 @@ class BipartiteSwapsTest : public ExpressionTestsBase {
 
 TEST_F(BipartiteSwapsTest, BipartiteOppositeSwaps) {
   buildUniverse();
-  // Initial assignment:
+  // Overrides to the initial assignment:
   //   Container 10: Object 1
   //   Container 20: Object 2
   //   Container 30: Object 3
   //   Container 40: Object 4
   // Bipartite Subset: Container 10, Container 20
-  const PackerMap<entities::ObjectId, entities::ContainerId> initialAssignment =
-      {{object(1), container(10)},
-       {object(2), container(20)},
-       {object(3), container(30)},
-       {object(4), container(40)}};
+  const PackerMap<entities::ObjectId, entities::ContainerId>
+      objectToContainerOverrides = {
+          {object(1), container(10)},
+          {object(2), container(20)},
+          {object(3), container(30)},
+          {object(4), container(40)}};
 
   auto bipartiteSwap = bipartite_swaps(
-      initialAssignment,
+      objectToContainerOverrides,
       {{container(10), container(20)}},
       {{container(30), container(40)}},
       getUniverse());
 
-  auto assignment = makeAssignment(initialAssignment);
+  auto assignment = makeAssignmentWithOverrides(objectToContainerOverrides);
 
   EXPECT_EQ(1, apply(bipartiteSwap, assignment));
 
@@ -90,25 +91,26 @@ TEST_F(BipartiteSwapsTest, BipartiteOppositeSwaps) {
 
 TEST_F(BipartiteSwapsTest, BipartiteSwapsSameSide) {
   buildUniverse();
-  // Initial assignment:
+  // Overrides to the initial assignment:
   //   Container 10: Object 1
   //   Container 20: Object 2
   //   Container 30: Object 3
   //   Container 40: Object 4
   // Bipartite Subset: Container 10, Container 20
-  const PackerMap<entities::ObjectId, entities::ContainerId> initialAssignment =
-      {{object(1), container(10)},
-       {object(2), container(20)},
-       {object(3), container(30)},
-       {object(4), container(40)}};
+  const PackerMap<entities::ObjectId, entities::ContainerId>
+      objectToContainerOverrides = {
+          {object(1), container(10)},
+          {object(2), container(20)},
+          {object(3), container(30)},
+          {object(4), container(40)}};
 
   auto bipartiteSwap = bipartite_swaps(
-      initialAssignment,
+      objectToContainerOverrides,
       {{container(10), container(20)}},
       {{container(30), container(40)}},
       getUniverse());
 
-  auto assignment = makeAssignment(initialAssignment);
+  auto assignment = makeAssignmentWithOverrides(objectToContainerOverrides);
 
   EXPECT_EQ(1, apply(bipartiteSwap, assignment));
 

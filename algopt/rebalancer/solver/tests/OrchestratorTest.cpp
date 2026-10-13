@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "algopt/rebalancer/entities/Containers.h"
 #include "algopt/rebalancer/entities/Identifiers.h"
+#include "algopt/rebalancer/entities/tests/UniverseBuilderTestUtils.h"
 #include "algopt/rebalancer/entities/Universe.h"
 #include "algopt/rebalancer/solver/expressions/Expression.h"
 #include "algopt/rebalancer/solver/expressions/ObjectLookup.h"
@@ -21,7 +23,6 @@
 #include "algopt/rebalancer/solver/expressions/Orchestrator.h"
 #include "algopt/rebalancer/solver/expressions/tests/ExpressionUtils.h"
 #include "algopt/rebalancer/solver/expressions/TopToBottomEvaluator.h"
-#include "algopt/rebalancer/solver/tests/IdConverterTestUtils.h"
 #include "algopt/rebalancer/solver/tests/MockExpression.h"
 #include "algopt/rebalancer/solver/utils/AffectedByChangeInfo.h"
 #include "algopt/rebalancer/solver/utils/Assignment.h"
@@ -250,37 +251,40 @@ TEST_F(OrchestratorTwoRootsTest, TwoRootsEvaluateTest) {
   EXPECT_FALSE(testContext->alreadyEvaluated.count(D.get()));
 }
 
-TEST(OrchestratorTest, DynamicChildrenTest) {
+class OrchestratorAssignmentTest
+    : public ::testing::Test,
+      public entities::tests::UniverseBuilderTestUtils {};
+
+TEST_F(OrchestratorAssignmentTest, DynamicChildrenTest) {
   // This test is to verify that if some nodes are affected by objects, the
   // still dynamic children are computed correctly
   Orchestrator orchestrator;
-  const entities::Universe universe{};
+  setInitialAssignment({
+      {"container1", {"object1", "object2"}},
+      {"container2", {}},
+      {"container3", {}},
+      {"container4", {}},
+      {"container5", {}},
+  });
+  const auto universe = buildUniverse();
 
   // create two lookup expressions
-  auto allContainers = std::make_shared<PackerSet<entities::ContainerId>>(
-      PackerSet<entities::ContainerId>{
-          container(1),
-          container(2),
-          container(3),
-          container(4),
-          container(5)});
+  const auto containerIds = universe->getContainers().getContainerIds();
+  const auto allContainers = std::make_shared<PackerSet<entities::ContainerId>>(
+      containerIds.begin(), containerIds.end());
 
-  const int numTotalObjects = 1e6;
+  const auto numTotalObjects = universe->getNumObjects();
   const int numTotalContainers = allContainers->size();
 
   // only one object with non-zero value; therefore, the AffectedByChangeType
-  // for lookup2 will be OBJECTS_ONLY
+  // for lookup1 will be OBJECTS_ONLY
   auto objectVector1 = makeObjectVector(
       PackerMap<entities::ObjectId, double>{{object(1), 1}},
       0,
       numTotalObjects,
-      universe);
+      *universe);
   const Assignment initialAssignment(
-      {{container(1), {object(1)}},
-       {container(2), {}},
-       {container(3), {}},
-       {container(4), {}},
-       {container(5), {}}});
+      universe->getContainers().getInitialAssignment());
   auto objectLookup1 =
       object_lookup(objectVector1, allContainers, initialAssignment);
 
@@ -290,7 +294,7 @@ TEST(OrchestratorTest, DynamicChildrenTest) {
       PackerMap<entities::ObjectId, double>{{object(1), 1}},
       1,
       numTotalObjects,
-      universe);
+      *universe);
   auto objectLookup2 =
       object_lookup(objectVector2, allContainers, initialAssignment);
 
@@ -318,22 +322,24 @@ TEST(OrchestratorTest, DynamicChildrenTest) {
   EXPECT_EQ(parentToDynamicChildren.at(sum.get()).size(), 2);
 }
 
-TEST(OrchestratorTest, MultiRootEvaluate) {
+TEST_F(OrchestratorAssignmentTest, MultiRootEvaluate) {
   // it is tempting to use only the height of a node as the priority when
   // evaluating (where nodes at smaller heights have higher priority). This
   // works when there is only one root, but fails when there are multiple roots
   // in the Orchestartor.
-  const Assignment assignment(
-      {{container(1), {object(0)}}, {container(2), {}}, {container(0), {}}});
-
-  const entities::Universe universe{};
+  setInitialAssignment({
+      {"container0", {}},
+      {"container1", {"object0"}},
+      {"container2", {}},
+  });
+  const auto universe = buildUniverse();
   const Assignment initialAssignment(
-      {{container(0), {}}, {container(1), {object(0)}}, {container(2), {}}});
-  auto v0 = variable(object(0), container(0), universe, initialAssignment);
-  auto v1 = variable(object(0), container(1), universe, initialAssignment); // 1
-  auto v2 = variable(object(0), container(2), universe, initialAssignment);
+      universe->getContainers().getInitialAssignment());
+  auto v0 = variable(object(0), container(0), *universe, initialAssignment);
+  auto v1 = variable(object(0), container(1), *universe, initialAssignment);
+  auto v2 = variable(object(0), container(2), *universe, initialAssignment);
 
-  ExprPtr sum1 = const_expr(0, universe);
+  ExprPtr sum1 = const_expr(0, *universe);
   inplace_add(sum1, max(0, v0 + v1));
 
   sum1->description = "sum1";
@@ -345,8 +351,8 @@ TEST(OrchestratorTest, MultiRootEvaluate) {
   {
     Context context;
     const auto evaluator = TopToBottomEvaluator(context);
-    sum1->fullApply(evaluator, assignment);
-    sum2->fullApply(evaluator, assignment);
+    sum1->fullApply(evaluator, initialAssignment);
+    sum2->fullApply(evaluator, initialAssignment);
     EXPECT_NEAR(1, sum1->value, 1e-9);
     EXPECT_NEAR(0, sum2->value, 1e-9);
   }

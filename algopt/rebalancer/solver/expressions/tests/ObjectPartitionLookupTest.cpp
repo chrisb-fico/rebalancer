@@ -799,7 +799,8 @@ CO_TEST_F(ObjectPartitionLookupTest, ObjectPartitionLookupGroupsLimit) {
   for (const auto i : folly::irange(16)) {
     allObjects.push_back(fmt::format("object{}", i));
   }
-  setInitialAssignment(InitialAssignment{{"container1", allObjects}});
+  setInitialAssignment(
+      InitialAssignment{{"container1", allObjects}, {"container0", {}}});
 
   co_await addPartition(
       "partition1",
@@ -858,19 +859,12 @@ CO_TEST_F(ObjectPartitionLookupTest, ObjectPartitionLookupGroupsLimit) {
   EXPECT_EQ(5.0, apply(objectPartitionLookup, assignment1, lpAssertOptions));
   EXPECT_EQ(5.0, objectPartitionLookup->value);
 
-  auto assignment2 = Assignment(
-      {{container(1),
-        {object(5),
-         object(6),
-         object(7),
-         object(8),
-         object(9),
-         object(10),
-         object(11),
-         object(12),
-         object(13),
-         object(14),
-         object(15)}}});
+  const auto assignment2 = makeAssignmentWithOverrides(
+      {{object(0), container(0)},
+       {object(1), container(0)},
+       {object(2), container(0)},
+       {object(3), container(0)},
+       {object(4), container(0)}});
 
   EXPECT_EQ(0.0, apply(objectPartitionLookup, assignment2, lpAssertOptions));
   EXPECT_EQ(0.0, objectPartitionLookup->value);

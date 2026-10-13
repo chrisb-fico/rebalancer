@@ -56,7 +56,7 @@ TEST_F(BoundsOverrideTest, Apply) {
   EXPECT_EQ(lb, std::optional<double>(1.0));
   EXPECT_EQ(ub, std::optional<double>(2.0));
 
-  auto assignment = makeAssignment({});
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
   EXPECT_EQ(-9, _apply(*boundsOverride, assignment));
 }
 

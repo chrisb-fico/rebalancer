@@ -293,7 +293,8 @@ TEST_F(ObjectPotentialsTest, SumOverThreshold) {
       45);
   SumOverThreshold sot(threshold, {child1, child2}, false);
   Context context;
-  const Assignment assignment;
+  const Assignment assignment(
+      getUniverse().getContainers().getInitialAssignment());
   sot.fullApply(TopToBottomEvaluator(context), assignment);
   auto potentials = sot.getObjectPotentials(true);
   const std::vector<ObjectPotential> expected = {
@@ -324,7 +325,8 @@ TEST_F(ObjectPotentialsTest, SumOverThresholdWithSquares) {
       14);
   SumOverThreshold sot(threshold, {child1, child2}, true);
   Context context;
-  const Assignment assignment;
+  const Assignment assignment(
+      getUniverse().getContainers().getInitialAssignment());
   sot.fullApply(TopToBottomEvaluator(context), assignment);
   auto potentials = sot.getObjectPotentials(true);
   const std::vector<ObjectPotential> expected = {
@@ -349,7 +351,8 @@ TEST_F(ObjectPotentialsTest, TransformPower) {
       10);
   Power power(child, 2);
   Context context;
-  const Assignment assignment;
+  const Assignment assignment(
+      getUniverse().getContainers().getInitialAssignment());
   power.fullApply(TopToBottomEvaluator(context), assignment);
   auto potentials = power.getObjectPotentials(true);
   const std::vector<ObjectPotential> expected = {
@@ -383,7 +386,8 @@ TEST_F(ObjectPotentialsTest, Max) {
            9)});
   Max max(children, getUniverse());
   Context context;
-  const Assignment assignment;
+  const Assignment assignment(
+      getUniverse().getContainers().getInitialAssignment());
   max.fullApply(TopToBottomEvaluator(context), assignment);
   auto potentials = max.getObjectPotentials(true);
   auto result =

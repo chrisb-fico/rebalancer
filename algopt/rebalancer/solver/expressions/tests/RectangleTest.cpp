@@ -37,47 +37,42 @@ class RectangleTest : public ExpressionTestsBase {
 TEST_F(RectangleTest, Constants) {
   buildUniverse();
   const auto& universe = getUniverse();
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
   {
     auto expr = rectangle(const_expr(-1.01, universe), 0, 1);
-    EXPECT_EQ(0, apply(expr, {}));
+    EXPECT_EQ(0, apply(expr, assignment));
   }
   {
     auto expr = rectangle(const_expr(-0.99, universe), -1, 0);
-    EXPECT_EQ(1.0, apply(expr, {}));
+    EXPECT_EQ(1.0, apply(expr, assignment));
   }
   {
     auto expr = rectangle(const_expr(0, universe), 0, 1);
-    EXPECT_EQ(1.0, apply(expr, {}));
+    EXPECT_EQ(1.0, apply(expr, assignment));
   }
   {
     auto expr = rectangle(const_expr(1e-12, universe), -1, 1);
-    EXPECT_EQ(1.0, apply(expr, {}));
+    EXPECT_EQ(1.0, apply(expr, assignment));
   }
   {
     auto expr = rectangle(const_expr(1 - 1e-12, universe), -1, 0.9);
-    EXPECT_EQ(0.0, apply(expr, {}));
+    EXPECT_EQ(0.0, apply(expr, assignment));
   }
   {
     auto expr = rectangle(const_expr(1, universe), -1, 1);
-    EXPECT_EQ(1.0, apply(expr, {}));
+    EXPECT_EQ(1.0, apply(expr, assignment));
   }
   {
     auto expr = rectangle(const_expr(1.01, universe), 0, 1);
-    EXPECT_EQ(0.0, apply(expr, {}));
+    EXPECT_EQ(0.0, apply(expr, assignment));
   }
 }
 
 TEST_F(RectangleTest, NonConstant) {
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment initialAssignment(
-      universe.getContainers().getInitialAssignment());
-  auto expr =
-      2 * variable(object(1), container(0), universe, initialAssignment) - 1.5;
-  const Assignment assignment({
-      {container(0), {}},
-      {container(1), {object(1)}},
-  });
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
+  auto expr = 2 * variable(object(1), container(0), universe, assignment) - 1.5;
 
   auto rectangleExpr = rectangle(expr, -1, 1);
 

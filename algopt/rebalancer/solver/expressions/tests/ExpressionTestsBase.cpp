@@ -37,6 +37,16 @@ getContainerToObjects(const Assignment& assignment) {
 
 } // namespace
 
+Assignment ExpressionTestsBase::makeAssignmentWithOverrides(
+    const PackerMap<entities::ObjectId, entities::ContainerId>&
+        objectToContainerOverrides) const {
+  Assignment assignment(getUniverse().getContainers().getInitialAssignment());
+  for (const auto& [objectId, containerId] : objectToContainerOverrides) {
+    assignment.moveTo(objectId, containerId);
+  }
+  return assignment;
+}
+
 double ExpressionTestsBase::evaluate(
     const ExprPtr& expr,
     const ObjectToNewContainer& changes,

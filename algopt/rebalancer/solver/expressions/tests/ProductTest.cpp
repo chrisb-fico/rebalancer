@@ -48,8 +48,8 @@ TEST_F(ProductTest, NeitherBinary) {
   auto binaryOperation = product(
       4 * variable(object(1), container(0), universe, initialAssignment) - 2,
       2 * variable(object(2), container(0), universe, initialAssignment) + 1);
-  const Assignment assignment(
-      {{container(0), {}}, {container(1), {object(1), object(2)}}});
+  const auto assignment =
+      getModifiedAssignment(initialAssignment, {{object(2), container(1)}});
 
   // skip lp expr evaluation because lp() is ony supported when one the operands
   // is binary
@@ -79,15 +79,9 @@ TEST_F(ProductTest, LhsBinary) {
   setUpDefaultAssignment();
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment initialAssignment(
-      universe.getContainers().getInitialAssignment());
-  auto m =
-      2 * variable(object(1), container(0), universe, initialAssignment) - 1;
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
+  auto m = 2 * variable(object(1), container(0), universe, assignment) - 1;
   auto binaryOperation = product(step(m), m - 2);
-  const Assignment assignment({
-      {container(0), {}},
-      {container(1), {object(1)}},
-  });
 
   // m init = 2*0 - 1 = -1; step(-1) = 0; (m-2) init = -3; product = 0 * -3 = 0.
   EXPECT_DOUBLE_EQ(0, binaryOperation->getInitialValue());

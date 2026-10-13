@@ -155,7 +155,7 @@ class GroupRoutingExpressionsTest : public ExpressionTestsBase {
       double expectedValueAfter) {
     EXPECT_NEAR(expectedValueBefore, expr.getInitialValue(), 1e-8);
 
-    auto assignment = makeAssignment(
+    auto assignment = makeAssignmentWithOverrides(
         {{tenant(1), region(1)},
          {tenant(2), region(3)},
          {tenant(3), region(4)}});

@@ -38,17 +38,17 @@ BENCHMARK(AllChildrenYieldSameAffectedContainers) {
   folly::BenchmarkSuspender suspend;
   const int lookupCount = 100E3;
   const Assignment assignment(
-      {{container(1), {object(1)}},
-       {container(2), {object(2)}},
-       {container(3), {object(3)}}});
+      {{container(0), {object(0)}},
+       {container(1), {object(1)}},
+       {container(2), {object(2)}}});
   auto allContainers = std::make_shared<PackerSet<entities::ContainerId>>(
       PackerSet<entities::ContainerId>{
-          container(1), container(2), container(3)});
+          container(0), container(1), container(2)});
   ExprPtr obj = const_expr(0, universe);
   for (const auto _ : folly::irange(lookupCount)) {
     auto lookup = object_lookup(
         makeObjectVector(
-            PackerMap<entities::ObjectId, double>{}, 1, 4, universe),
+            PackerMap<entities::ObjectId, double>{}, 1, 3, universe),
         allContainers,
         assignment);
     inplace_add(obj, lookup);

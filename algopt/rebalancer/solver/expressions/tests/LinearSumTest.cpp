@@ -39,11 +39,12 @@ class LinearSumTest : public ExpressionTestsBase {
 };
 
 TEST_F(LinearSumTest, Caching) {
-  setUpDefaultAssignment();
+  setInitialAssignment(
+      entities::Map<std::string, std::vector<std::string>>{
+          {"container0", {}}, {"container1", {"object0"}}, {"container2", {}}});
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment assignment(
-      {{container(1), {object(0)}}, {container(2), {}}, {container(0), {}}});
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
 
   auto v0 = variable(object(0), container(0), universe, assignment);
   auto v1 = variable(object(0), container(1), universe, assignment); // 1
@@ -109,11 +110,7 @@ TEST_F(LinearSumTest, RefreshMergesPartialChildChanges) {
   setUpDefaultAssignment();
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment assignment(
-      {{container(0), {object(0)}},
-       {container(1), {object(1)}},
-       {container(2), {object(2)}},
-       {container(3), {object(3)}}});
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
 
   // Each variable depends on a distinct object, so a change to one object
   // only changes that variable's value.

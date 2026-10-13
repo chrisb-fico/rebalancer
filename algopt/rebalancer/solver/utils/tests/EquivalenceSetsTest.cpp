@@ -14,6 +14,7 @@
 
 #include "algopt/rebalancer/algopt_common/CompressedIdMap.h"
 #include "algopt/rebalancer/algopt_common/Utils.h"
+#include "algopt/rebalancer/entities/Containers.h"
 #include "algopt/rebalancer/entities/Identifiers.h"
 #include "algopt/rebalancer/entities/Map.h"
 #include "algopt/rebalancer/entities/ObjectDimension.h"
@@ -99,6 +100,10 @@ ObjectToContainerAssignmentUtils getAssignmentUtils(
 
 } // namespace
 
+class EquivalenceSetsAssignmentTest
+    : public ::testing::Test,
+      public entities::tests::UniverseBuilderTestUtils {};
+
 TEST(EquivalenceSetsTest, Simple) {
   const auto universe = makeTestUniverse();
   EquivalenceSets equivalenceSets(*universe);
@@ -158,8 +163,13 @@ TEST(EquivalenceSetsTest, Simple) {
       get_sets(equivalenceSets));
 }
 
-TEST(EquivalenceSetsTest, getObjectToContainer) {
-  const auto universe = makeTestUniverse();
+TEST_F(EquivalenceSetsAssignmentTest, getObjectToContainer) {
+  setInitialAssignment({
+      {"container1", {"object101", "object103"}},
+      {"container2", {"object102"}},
+      {"container3", {"object104"}},
+  });
+  const auto universe = buildUniverse();
   EquivalenceSets equivalenceSets(*universe);
 
   equivalenceSets.mappingMerge(
@@ -175,10 +185,8 @@ TEST(EquivalenceSetsTest, getObjectToContainer) {
   ObjectToContainerAssignmentUtils assignmentUtils =
       getAssignmentUtils({{container(1)}, {container(2)}, {container(3)}});
 
-  auto initialAssignment = Assignment(
-      {{container(1), {object(101), object(103)}},
-       {container(2), {object(102)}},
-       {container(3), {object(104)}}});
+  const Assignment initialAssignment(
+      universe->getContainers().getInitialAssignment());
   PackerMap<EquivalenceSetId, PackerMap<ContainerId, int>>
       equivSetToContainerToObjectCount;
   // 101 -> container 1
@@ -203,29 +211,26 @@ TEST(EquivalenceSetsTest, getObjectToContainer) {
   EXPECT_EQ(finalAssignment, expected);
 }
 
-TEST(EquivalenceSetsTest, equivalenceSetShuffling) {
-  const auto universe = makeTestUniverse();
+TEST_F(EquivalenceSetsAssignmentTest, equivalenceSetShuffling) {
+  entities::Map<std::string, std::vector<std::string>> containerToObjects = {
+      {"container0", {}}, {"container1", {}}};
+  auto& objectNames = containerToObjects.at("container0");
+  objectNames.reserve(100);
+  for (const auto i : folly::irange(100)) {
+    objectNames.push_back(fmt::format("object{}", i));
+  }
+  setInitialAssignment(containerToObjects);
+  const auto universe = buildUniverse();
   EquivalenceSets equivalenceSets(*universe);
 
-  std::vector<ObjectId> objects;
-  objects.reserve(100);
-  for (const auto i : folly::irange(100)) {
-    objects.push_back(object(i));
-  }
-
   PackerMap<ObjectId, int> merging;
-  for (auto obj : objects) {
+  for (const auto obj : universe->getObjects().getObjectIds()) {
     merging[obj] = 1;
   }
   equivalenceSets.mappingMerge(merging);
 
-  // All objects in same container
-  PackerMap<ContainerId, vector<ObjectId>> initialContainerToObjects;
-  for (auto obj : objects) {
-    initialContainerToObjects[container(0)].push_back(obj);
-  }
-
-  auto initialAssignment = Assignment(initialContainerToObjects);
+  const Assignment initialAssignment(
+      universe->getContainers().getInitialAssignment());
   PackerMap<EquivalenceSetId, PackerMap<ContainerId, int>>
       equivSetToContainerToObjectCount;
   equivSetToContainerToObjectCount[equivalenceSets.at(object(0))]
@@ -243,13 +248,13 @@ TEST(EquivalenceSetsTest, equivalenceSetShuffling) {
   };
 
   auto checkValid = [&](const auto& result) {
-    PackerMap<int, int> totals;
-    for (const auto& [_, container] : result) {
-      totals[container.asInt()]++;
+    PackerMap<ContainerId, int> totals;
+    for (const auto& [_, containerId] : result) {
+      totals[containerId]++;
     }
     EXPECT_EQ(totals.size(), 2);
-    EXPECT_EQ(totals.at(0), 50);
-    EXPECT_EQ(totals.at(1), 50);
+    EXPECT_EQ(totals.at(container(0)), 50);
+    EXPECT_EQ(totals.at(container(1)), 50);
   };
 
   checkValid(generateAssignment());
@@ -265,8 +270,12 @@ TEST(EquivalenceSetsTest, equivalenceSetShuffling) {
   EXPECT_NE(generateAssignment("seed2"), generateAssignment());
 }
 
-TEST(EquivalenceSetsTest, TestMinimumMovementAssignment) {
-  const auto universe = makeTestUniverse();
+TEST_F(EquivalenceSetsAssignmentTest, TestMinimumMovementAssignment) {
+  setInitialAssignment({
+      {"container1", {"object1", "object2", "object3"}},
+      {"container2", {"object4", "object5"}},
+  });
+  const auto universe = buildUniverse();
   EquivalenceSets equivalenceSets(*universe);
   equivalenceSets.mappingMerge(
       PackerMap<ObjectId, int>(
@@ -276,9 +285,8 @@ TEST(EquivalenceSetsTest, TestMinimumMovementAssignment) {
            {object(4), 1},
            {object(5), 2}}));
   auto assignmentUtils = getAssignmentUtils({{container(1)}, {container(2)}});
-  auto initialAssignment = Assignment(
-      {{container(1), {object(1), object(2), object(3)}},
-       {container(2), {object(4), object(5)}}});
+  const Assignment initialAssignment(
+      universe->getContainers().getInitialAssignment());
 
   PackerMap<EquivalenceSetId, PackerMap<ContainerId, int>>
       equivSetToContainerToObjectCount;
@@ -291,8 +299,14 @@ TEST(EquivalenceSetsTest, TestMinimumMovementAssignment) {
   EXPECT_EQ(res.at(object(5)), container(1));
 }
 
-TEST(EquivalenceSetsTest, TestMinimumMovementAssignment2) {
-  const auto universe = makeTestUniverse();
+TEST_F(EquivalenceSetsAssignmentTest, TestMinimumMovementAssignment2) {
+  setInitialAssignment({
+      {"container1", {"object2", "object3"}},
+      {"container2", {"object1", "object4", "object5", "object6"}},
+      {"container3", {"object7", "object8", "object9"}},
+      {"container4", {"object10"}},
+  });
+  const auto universe = buildUniverse();
   EquivalenceSets equivalenceSets(*universe);
   equivalenceSets.mappingMerge(
       PackerMap<ObjectId, int>(
@@ -308,11 +322,8 @@ TEST(EquivalenceSetsTest, TestMinimumMovementAssignment2) {
            {object(10), 3}}));
   auto assignmentUtils =
       getAssignmentUtils({{container(1)}, {container(2)}, {container(3)}});
-  auto initialAssignment = Assignment(
-      {{container(1), {object(2), object(3)}},
-       {container(2), {object(1), object(4), object(5), object(6)}},
-       {container(3), {object(7), object(8), object(9)}},
-       {container(4), {object(10)}}});
+  const Assignment initialAssignment(
+      universe->getContainers().getInitialAssignment());
 
   PackerMap<EquivalenceSetId, PackerMap<ContainerId, int>>
       equivSetToContainerToObjectCount;
@@ -399,8 +410,14 @@ TEST(EquivalenceSetsTest, getPreferredContainers) {
   }
 }
 
-TEST(EquivalenceSetsTest, addStableContainerGroup) {
-  const auto universe = makeTestUniverse();
+TEST_F(EquivalenceSetsAssignmentTest, addStableContainerGroup) {
+  setInitialAssignment({
+      {"container1", {"object101"}},
+      {"container2", {"object102"}},
+      {"container3", {"object103"}},
+      {"container4", {"object104"}},
+  });
+  const auto universe = buildUniverse();
   EquivalenceSets equivalenceSets(*universe);
 
   equivalenceSets.mappingMerge(
@@ -423,11 +440,8 @@ TEST(EquivalenceSetsTest, addStableContainerGroup) {
        {container(3)},
        {container(4)}});
 
-  auto initialAssignment = Assignment(
-      {{container(1), {object(101)}},
-       {container(2), {object(102)}},
-       {container(3), {object(103)}},
-       {container(4), {object(104)}}});
+  const Assignment initialAssignment(
+      universe->getContainers().getInitialAssignment());
   PackerMap<EquivalenceSetId, PackerMap<ContainerId, int>>
       equivSetToContainerToObjectCount;
   equivSetToContainerToObjectCount[equivalenceSets.at(object(101))]
@@ -444,87 +458,89 @@ TEST(EquivalenceSetsTest, addStableContainerGroup) {
   EXPECT_EQ(finalAssignment, expected);
 }
 
-TEST(EquivalenceSetsTest, stableContainerCompetition) {
-  {
-    const auto universe = makeTestUniverse();
-    EquivalenceSets equivalenceSets(*universe);
-    equivalenceSets.mappingMerge(
-        PackerMap<ObjectId, int>(
-            {{object(1), 1}, {object(2), 1}, {object(3), 1}}));
-    EXPECT_EQ(
-        set<set<ObjectId>>({{object(1), object(2), object(3)}}),
-        get_sets(equivalenceSets));
+TEST_F(EquivalenceSetsAssignmentTest, stableContainerCompetition) {
+  setInitialAssignment({
+      {"container1", {"object1"}},
+      {"container2", {"object2"}},
+      {"container3", {"object3"}},
+  });
+  const auto universe = buildUniverse();
+  EquivalenceSets equivalenceSets(*universe);
+  equivalenceSets.mappingMerge(
+      PackerMap<ObjectId, int>(
+          {{object(1), 1}, {object(2), 1}, {object(3), 1}}));
+  EXPECT_EQ(
+      set<set<ObjectId>>({{object(1), object(2), object(3)}}),
+      get_sets(equivalenceSets));
 
-    const PackerMap<ContainerId, vector<ObjectId>> initialContainerToObjects = {
-        {container(1), {object(1)}},
-        {container(2), {object(2)}},
-        {container(3), {object(3)}}};
-    // we would like container 2 to be as stable as possile
-    // (1, 2) to be as stable as possile
-    // therefore when after solve
-    // 1:2, 2:1, 3:0
-    // 2 should keep its object and 1 gets it from 3
-    auto assignmentUtils =
-        getAssignmentUtils({{container(1)}, {container(2)}, {container(2)}});
+  // we would like container 2 to be as stable as possile
+  // (1, 2) to be as stable as possile
+  // therefore when after solve
+  // 1:2, 2:1, 3:0
+  // 2 should keep its object and 1 gets it from 3
+  auto assignmentUtils =
+      getAssignmentUtils({{container(1)}, {container(2)}, {container(2)}});
 
-    auto initialAssignment = Assignment(initialContainerToObjects);
-    PackerMap<EquivalenceSetId, PackerMap<ContainerId, int>>
-        equivSetToContainerToObjectCount;
-    // we want to move 3 from c3 to c1
-    equivSetToContainerToObjectCount[equivalenceSets.at(object(1))]
-                                    [container(1)] = 2;
-    equivSetToContainerToObjectCount[equivalenceSets.at(object(1))]
-                                    [container(2)] = 1;
-    auto finalAssignment = assignmentUtils.getObjectToContainer(
-        equivalenceSets, equivSetToContainerToObjectCount, initialAssignment);
-    const PackerMap<ObjectId, ContainerId> expected = {
-        {object(1), container(1)},
-        {object(2), container(2)},
-        {object(3), container(1)}};
-    EXPECT_EQ(finalAssignment, expected);
-  }
-  {
-    const auto universe = makeTestUniverse();
-    EquivalenceSets equivalenceSets(*universe);
-    equivalenceSets.mappingMerge(
-        PackerMap<ObjectId, int>(
-            {{object(1), 1}, {object(2), 1}, {object(3), 1}, {object(4), 1}}));
-    EXPECT_EQ(
-        set<set<ObjectId>>({{object(1), object(2), object(3), object(4)}}),
-        get_sets(equivalenceSets));
+  const Assignment initialAssignment(
+      universe->getContainers().getInitialAssignment());
+  PackerMap<EquivalenceSetId, PackerMap<ContainerId, int>>
+      equivSetToContainerToObjectCount;
+  // we want to move 3 from c3 to c1
+  equivSetToContainerToObjectCount[equivalenceSets.at(object(1))]
+                                  [container(1)] = 2;
+  equivSetToContainerToObjectCount[equivalenceSets.at(object(1))]
+                                  [container(2)] = 1;
+  auto finalAssignment = assignmentUtils.getObjectToContainer(
+      equivalenceSets, equivSetToContainerToObjectCount, initialAssignment);
+  const PackerMap<ObjectId, ContainerId> expected = {
+      {object(1), container(1)},
+      {object(2), container(2)},
+      {object(3), container(1)}};
+  EXPECT_EQ(finalAssignment, expected);
+}
 
-    const PackerMap<ContainerId, vector<ObjectId>> initialContainerToObjects = {
-        {container(1), {object(1)}},
-        {container(2), {object(2)}},
-        {container(3), {object(3)}},
-        {container(4), {object(4)}}};
+TEST_F(EquivalenceSetsAssignmentTest, overlappingStableContainerCompetition) {
+  setInitialAssignment({
+      {"container1", {"object1"}},
+      {"container2", {"object2"}},
+      {"container3", {"object3"}},
+      {"container4", {"object4"}},
+  });
+  const auto universe = buildUniverse();
+  EquivalenceSets equivalenceSets(*universe);
+  equivalenceSets.mappingMerge(
+      PackerMap<ObjectId, int>(
+          {{object(1), 1}, {object(2), 1}, {object(3), 1}, {object(4), 1}}));
+  EXPECT_EQ(
+      set<set<ObjectId>>({{object(1), object(2), object(3), object(4)}}),
+      get_sets(equivalenceSets));
 
-    auto assignmentUtils = getAssignmentUtils(
-        {{container(1), container(3), container(4)},
-         {container(2), container(3)},
-         {container(1)},
-         {container(2)},
-         {container(3)},
-         {container(4)}});
+  auto assignmentUtils = getAssignmentUtils(
+      {{container(1), container(3), container(4)},
+       {container(2), container(3)},
+       {container(1)},
+       {container(2)},
+       {container(3)},
+       {container(4)}});
 
-    auto initialAssignment = Assignment(initialContainerToObjects);
-    PackerMap<EquivalenceSetId, PackerMap<ContainerId, int>>
-        equivSetToContainerToObjectCount;
-    // 1 and 2 are competing for 3
-    // we should prioritize 3 for 2, since 1 has another choice 4
-    equivSetToContainerToObjectCount[equivalenceSets.at(object(1))]
-                                    [container(1)] = 2;
-    equivSetToContainerToObjectCount[equivalenceSets.at(object(1))]
-                                    [container(2)] = 2;
-    auto finalAssignment = assignmentUtils.getObjectToContainer(
-        equivalenceSets, equivSetToContainerToObjectCount, initialAssignment);
-    const PackerMap<ObjectId, ContainerId> expected = {
-        {object(1), container(1)},
-        {object(2), container(2)},
-        {object(3), container(2)},
-        {object(4), container(1)}};
-    EXPECT_EQ(finalAssignment, expected);
-  }
+  const Assignment initialAssignment(
+      universe->getContainers().getInitialAssignment());
+  PackerMap<EquivalenceSetId, PackerMap<ContainerId, int>>
+      equivSetToContainerToObjectCount;
+  // 1 and 2 are competing for 3
+  // we should prioritize 3 for 2, since 1 has another choice 4
+  equivSetToContainerToObjectCount[equivalenceSets.at(object(1))]
+                                  [container(1)] = 2;
+  equivSetToContainerToObjectCount[equivalenceSets.at(object(1))]
+                                  [container(2)] = 2;
+  auto finalAssignment = assignmentUtils.getObjectToContainer(
+      equivalenceSets, equivSetToContainerToObjectCount, initialAssignment);
+  const PackerMap<ObjectId, ContainerId> expected = {
+      {object(1), container(1)},
+      {object(2), container(2)},
+      {object(3), container(2)},
+      {object(4), container(1)}};
+  EXPECT_EQ(finalAssignment, expected);
 }
 
 TEST(EquivalenceSetsTest, finalize) {

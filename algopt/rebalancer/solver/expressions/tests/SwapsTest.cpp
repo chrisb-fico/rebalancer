@@ -37,20 +37,16 @@ class SwapsTest : public ExpressionTestsBase {
 TEST_F(SwapsTest, Swaps) {
   buildUniverse();
   const auto& universe = getUniverse();
-  auto s = swaps(
-      {{object(1), container(1)},
-       {object(2), container(1)},
-       {object(3), container(2)},
-       {object(4), container(2)},
-       {object(5), container(2)},
-       {object(6), container(3)}},
-      universe,
-      {});
-
-  Assignment assignment(
-      {{container(1), {object(1), object(2)}},
-       {container(2), {object(3), object(4), object(5)}},
-       {container(3), {object(6)}}});
+  const PackerMap<entities::ObjectId, entities::ContainerId>
+      objectToContainerOverrides = {
+          {object(1), container(1)},
+          {object(2), container(1)},
+          {object(3), container(2)},
+          {object(4), container(2)},
+          {object(5), container(2)},
+          {object(6), container(3)}};
+  auto s = swaps(objectToContainerOverrides, universe, {});
+  auto assignment = makeAssignmentWithOverrides(objectToContainerOverrides);
 
   EXPECT_EQ(1, apply(s, assignment));
 
@@ -141,19 +137,16 @@ TEST_F(SwapsTest, Swaps) {
 TEST_F(SwapsTest, SwapSubsets) {
   buildUniverse();
   const auto& universe = getUniverse();
-  auto s = swaps(
-      {{object(1), container(1)},
-       {object(2), container(1)},
-       {object(3), container(2)},
-       {object(4), container(2)},
-       {object(5), container(2)},
-       {object(6), container(3)}},
-      universe,
-      {{object(1)}});
-  Assignment assignment(
-      {{container(1), {object(1), object(2)}},
-       {container(2), {object(3), object(4), object(5)}},
-       {container(3), {object(6)}}});
+  const PackerMap<entities::ObjectId, entities::ContainerId>
+      objectToContainerOverrides = {
+          {object(1), container(1)},
+          {object(2), container(1)},
+          {object(3), container(2)},
+          {object(4), container(2)},
+          {object(5), container(2)},
+          {object(6), container(3)}};
+  auto s = swaps(objectToContainerOverrides, universe, {{object(1)}});
+  auto assignment = makeAssignmentWithOverrides(objectToContainerOverrides);
   EXPECT_EQ(1, apply(s, assignment));
 
   // Initial
@@ -250,14 +243,14 @@ TEST_F(SwapsTest, SwapSubsets) {
 TEST_F(SwapsTest, Swaps2) {
   buildUniverse();
   const auto& universe = getUniverse();
-  auto s = swaps(
-      {{object(1), container(10)},
-       {object(2), container(20)},
-       {object(3), container(20)}},
-      universe,
-      {});
-  const Assignment assignment1(
-      {{container(10), {object(1)}}, {container(20), {object(2), object(3)}}});
+  const PackerMap<entities::ObjectId, entities::ContainerId>
+      objectToContainerOverrides = {
+          {object(1), container(10)},
+          {object(2), container(20)},
+          {object(3), container(20)}};
+  auto s = swaps(objectToContainerOverrides, universe, {});
+  const auto assignment1 =
+      makeAssignmentWithOverrides(objectToContainerOverrides);
   EXPECT_EQ(1, apply(s, assignment1));
   EXPECT_EQ(
       0,
@@ -267,27 +260,27 @@ TEST_F(SwapsTest, Swaps2) {
            {object(2), container(10)},
            {object(3), container(10)}},
           assignment1));
-  const Assignment assignment2(
-      {{container(10), {object(2), object(3)}}, {container(20), {object(1)}}});
+  const auto assignment2 = getModifiedAssignment(
+      assignment1,
+      {{object(1), container(20)},
+       {object(2), container(10)},
+       {object(3), container(10)}});
   EXPECT_EQ(0, apply(s, assignment2));
 }
 
 TEST_F(SwapsTest, SwapSubsets2) {
   buildUniverse();
   const auto& universe = getUniverse();
-  auto s = swaps(
-      {{object(1), container(10)},
-       {object(2), container(20)},
-       {object(3), container(30)},
-       {object(4), container(40)}},
-      universe,
-      {{object(1), object(2)}});
-
-  const Assignment assignment1(
-      {{container(10), {object(1)}},
-       {container(20), {object(2)}},
-       {container(30), {object(3)}},
-       {container(40), {object(4)}}});
+  const PackerMap<entities::ObjectId, entities::ContainerId>
+      objectToContainerOverrides = {
+          {object(1), container(10)},
+          {object(2), container(20)},
+          {object(3), container(30)},
+          {object(4), container(40)}};
+  auto s =
+      swaps(objectToContainerOverrides, universe, {{object(1), object(2)}});
+  const auto assignment1 =
+      makeAssignmentWithOverrides(objectToContainerOverrides);
   EXPECT_EQ(1, apply(s, assignment1));
 
   // swap(object(1), container(2)) + swap(3, 4)
@@ -300,11 +293,12 @@ TEST_F(SwapsTest, SwapSubsets2) {
            {object(3), container(40)},
            {object(4), container(30)}},
           assignment1));
-  const Assignment assignment2(
-      {{container(20), {object(1)}},
-       {container(10), {object(2)}},
-       {container(30), {object(4)}},
-       {container(40), {object(3)}}});
+  const auto assignment2 = getModifiedAssignment(
+      assignment1,
+      {{object(1), container(20)},
+       {object(2), container(10)},
+       {object(3), container(40)},
+       {object(4), container(30)}});
   EXPECT_EQ(0, apply(s, assignment2));
 
   // swap(1, 4) + swap(2, 3)
@@ -317,35 +311,37 @@ TEST_F(SwapsTest, SwapSubsets2) {
            {object(3), container(10)},
            {object(4), container(20)}},
           assignment2));
-  const Assignment assignment3(
-      {{container(10), {object(3)}},
-       {container(20), {object(4)}},
-       {container(30), {object(1)}},
-       {container(40), {object(2)}}});
+  const auto assignment3 = getModifiedAssignment(
+      assignment2,
+      {{object(1), container(30)},
+       {object(2), container(40)},
+       {object(3), container(10)},
+       {object(4), container(20)}});
   EXPECT_EQ(1, apply(s, assignment3));
 }
 
 TEST_F(SwapsTest, SwapSubsetAtLeastOne) {
   buildUniverse();
   const auto& universe = getUniverse();
-  // Initial assignment:
+  // Overrides to the initial assignment:
   //   Container 10: Object 1, Object 3
   //   Container 20: Object 2, Object 4
   // Subset: Object 1, Object 2
   // Definition: AT_LEAST_ONE_IN_SUBSET
-  const PackerMap<entities::ObjectId, entities::ContainerId> initialAssignment =
-      {{object(1), container(10)},
-       {object(2), container(20)},
-       {object(3), container(10)},
-       {object(4), container(20)}};
+  const PackerMap<entities::ObjectId, entities::ContainerId>
+      objectToContainerOverrides = {
+          {object(1), container(10)},
+          {object(2), container(20)},
+          {object(3), container(10)},
+          {object(4), container(20)}};
 
   auto s = swaps(
-      initialAssignment,
+      objectToContainerOverrides,
       universe,
       {{object(1), object(2)}},
       Swaps::SubsetDefinition::AT_LEAST_ONE_IN_SUBSET);
 
-  auto assignment = makeAssignment(initialAssignment);
+  auto assignment = makeAssignmentWithOverrides(objectToContainerOverrides);
 
   EXPECT_EQ(1, apply(s, assignment));
 
@@ -386,24 +382,25 @@ TEST_F(SwapsTest, SwapSubsetAtLeastOne) {
 TEST_F(SwapsTest, SwapSubsetExactlyOne) {
   buildUniverse();
   const auto& universe = getUniverse();
-  // Initial assignment:
+  // Overrides to the initial assignment:
   //   Container 10: Object 1, Object 3
   //   Container 20: Object 2, Object 4
   // Subset: Object 1, Object 2
   // Definition: EXACTLY_ONE_IN_SUBSET
-  const PackerMap<entities::ObjectId, entities::ContainerId> initialAssignment =
-      {{object(1), container(10)},
-       {object(2), container(20)},
-       {object(3), container(10)},
-       {object(4), container(20)}};
+  const PackerMap<entities::ObjectId, entities::ContainerId>
+      objectToContainerOverrides = {
+          {object(1), container(10)},
+          {object(2), container(20)},
+          {object(3), container(10)},
+          {object(4), container(20)}};
 
   auto s = swaps(
-      initialAssignment,
+      objectToContainerOverrides,
       universe,
       {{object(1), object(2)}},
       Swaps::SubsetDefinition::EXACTLY_ONE_IN_SUBSET);
 
-  auto assignment = makeAssignment(initialAssignment);
+  auto assignment = makeAssignmentWithOverrides(objectToContainerOverrides);
 
   EXPECT_EQ(1, apply(s, assignment));
 
@@ -444,25 +441,26 @@ TEST_F(SwapsTest, SwapSubsetExactlyOne) {
 TEST_F(SwapsTest, SwapBothSameSideOfSubset) {
   buildUniverse();
   const auto& universe = getUniverse();
-  // Initial assignment:
+  // Overrides to the initial assignment:
   //   Container 10: Object 1, Object 3, Object 5
   //   Container 20: Object 2, Object 4
   // Subset: Object 1, Object 2, Object 3
   // Definition: BOTH_SAME_SIDE_OF_SUBSET
-  const PackerMap<entities::ObjectId, entities::ContainerId> initialAssignment =
-      {{object(1), container(10)},
-       {object(2), container(20)},
-       {object(3), container(10)},
-       {object(4), container(20)},
-       {object(5), container(10)}};
+  const PackerMap<entities::ObjectId, entities::ContainerId>
+      objectToContainerOverrides = {
+          {object(1), container(10)},
+          {object(2), container(20)},
+          {object(3), container(10)},
+          {object(4), container(20)},
+          {object(5), container(10)}};
 
   auto s = swaps(
-      initialAssignment,
+      objectToContainerOverrides,
       universe,
       {{object(1), object(2), object(3)}},
       Swaps::SubsetDefinition::BOTH_SAME_SIDE_OF_SUBSET);
 
-  auto assignment = makeAssignment(initialAssignment);
+  auto assignment = makeAssignmentWithOverrides(objectToContainerOverrides);
 
   EXPECT_EQ(1, apply(s, assignment));
 

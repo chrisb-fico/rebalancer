@@ -37,49 +37,50 @@ class CeilTest : public ExpressionTestsBase {
 TEST_F(CeilTest, Constants) {
   buildUniverse();
   const auto& universe = getUniverse();
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
   {
     auto expr = ceil(const_expr(-1.01, universe));
-    EXPECT_EQ(-1.0, apply(expr, {}));
+    EXPECT_EQ(-1.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(-0.99, universe));
-    EXPECT_EQ(0.0, apply(expr, {}));
+    EXPECT_EQ(0.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(-1e-12, universe));
-    EXPECT_EQ(0.0, apply(expr, {}));
+    EXPECT_EQ(0.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(0, universe));
-    EXPECT_EQ(0.0, apply(expr, {}));
+    EXPECT_EQ(0.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(1e-12, universe));
-    EXPECT_EQ(0.0, apply(expr, {}));
+    EXPECT_EQ(0.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(1 - 1e-12, universe));
-    EXPECT_EQ(1.0, apply(expr, {}));
+    EXPECT_EQ(1.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(1, universe));
-    EXPECT_EQ(1.0, apply(expr, {}));
+    EXPECT_EQ(1.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(1 + 1e-12, universe));
-    EXPECT_EQ(1.0, apply(expr, {}));
+    EXPECT_EQ(1.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(1.01, universe));
-    EXPECT_EQ(2.0, apply(expr, {}));
+    EXPECT_EQ(2.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(1.99, universe));
-    EXPECT_EQ(2.0, apply(expr, {}));
+    EXPECT_EQ(2.0, apply(expr, assignment));
   }
   {
     auto expr = ceil(const_expr(2.5, universe));
-    EXPECT_EQ(3.0, apply(expr, {}));
+    EXPECT_EQ(3.0, apply(expr, assignment));
   }
 }
 
@@ -93,19 +94,17 @@ TEST_F(CeilTest, IsInteger) {
 TEST_F(CeilTest, FloorOperator) {
   buildUniverse();
   const auto& universe = getUniverse();
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
 
-  EXPECT_DOUBLE_EQ(1, apply(floor(const_expr(1.9, universe)), {}));
-  EXPECT_DOUBLE_EQ(1, apply(floor(const_expr(1.0, universe)), {}));
-  EXPECT_DOUBLE_EQ(-2, apply(floor(const_expr(-1.1, universe)), {}));
+  EXPECT_DOUBLE_EQ(1, apply(floor(const_expr(1.9, universe)), assignment));
+  EXPECT_DOUBLE_EQ(1, apply(floor(const_expr(1.0, universe)), assignment));
+  EXPECT_DOUBLE_EQ(-2, apply(floor(const_expr(-1.1, universe)), assignment));
 }
 
 TEST_F(CeilTest, FloorNonConstant) {
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment assignment({
-      {container(0), {}},
-      {container(1), {object(1)}},
-  });
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
   auto expr = 2 * variable(object(1), container(0), universe, assignment) - 1.5;
   auto floorExpr = floor(expr);
 
@@ -120,10 +119,7 @@ TEST_F(CeilTest, FloorNonConstant) {
 TEST_F(CeilTest, NonConstant) {
   buildUniverse();
   const auto& universe = getUniverse();
-  const Assignment assignment({
-      {container(0), {}},
-      {container(1), {object(1)}},
-  });
+  const Assignment assignment(universe.getContainers().getInitialAssignment());
   auto expr = 2 * variable(object(1), container(0), universe, assignment) - 1.5;
   auto ceilExpr = ceil(expr);
 

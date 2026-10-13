@@ -57,7 +57,7 @@ TEST_F(SumOverThresholdTest, SumOverThreshold) {
   EXPECT_NEAR(0.0, lower_bound(*sot), 1e-8);
   EXPECT_NEAR(0.4, upper_bound(*sot), 1e-8);
 
-  auto assignment = makeAssignment(
+  auto assignment = makeAssignmentWithOverrides(
       {{object(0), container(1)},
        {object(1), container(1)},
        {object(2), container(1)},
@@ -139,7 +139,7 @@ TEST_F(SumOverThresholdTest, SumOverThreshold2) {
       .exceptionForLpExpr =
           "SumOverThreshold with squares is not supported yet when using lp()"};
 
-  auto assignment = makeAssignment(
+  auto assignment = makeAssignmentWithOverrides(
       {{object(0), container(1)},
        {object(1), container(1)},
        {object(2), container(1)},

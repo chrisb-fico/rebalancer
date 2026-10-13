@@ -674,9 +674,10 @@ CO_TEST_P(
   Context context;
   const TopToBottomEvaluator evaluator(context);
   // 1. Apply assignment where all group objects are in same container
-  auto initialAssignment = Assignment(
-      {{container(0), {object(0), object(1), object(2)}},
-       {container(4), {object(3), object(4)}}});
+  const auto initialAssignment = makeAssignmentWithOverrides(
+      {{object(1), container(0)},
+       {object(2), container(0)},
+       {object(3), container(4)}});
 
   rootExpr_->fullApply(evaluator, initialAssignment);
   checkExpectedValues(
