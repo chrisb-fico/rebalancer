@@ -125,6 +125,49 @@ TEST_F(AssignmentTest, EquivalenceIndexGetterRejectsOtherKeys) {
       assignment.getObjectsIndexedByEquivSets(otherSets), std::runtime_error);
 }
 
+TEST_F(AssignmentTest, EquivalenceIndexPutsTopScoredObjectOfEachSetFirst) {
+  const entities::Map<std::string, std::vector<std::string>> initialAssignment =
+      {{{"host0", {"task0", "task1", "task2", "task3"}},
+        {"host1", {"task4", "task5"}}}};
+  setInitialAssignment(initialAssignment);
+  const auto universe = buildUniverse();
+  const PackerMap<entities::ObjectId, double> taskToScore = {
+      {task(0), 1.0},
+      {task(1), 4.0},
+      {task(2), 3.0},
+      {task(3), 2.0},
+      {task(5), 5.0}};
+  Assignment assignment(
+      universe->getContainers().getInitialAssignment(),
+      std::make_shared<const ObjectScores>(entities::ObjectValues(
+          std::make_shared<const entities::ObjectIdToDoubleMap>(
+              taskToScore,
+              /*defaultValue=*/0.0,
+              /*totalSize=*/universe->getNumObjects()))),
+      /*fixedObjects=*/{},
+      /*useDynamicObjectOrdering=*/false);
+  EquivalenceSets sets(*universe);
+  sets.mappingMerge(
+      PackerMap<entities::ObjectId, int>{
+          {task(0), 0},
+          {task(1), 1},
+          {task(2), 0},
+          {task(3), 1},
+          {task(4), 2},
+          {task(5), 0}});
+  assignment.buildIndexByEquivalentSets(sets);
+  const auto firstObjects = [&]() {
+    return makeSet(assignment.getDistinctObjectsFromEquivSetIdx(host(0), sets));
+  };
+
+  EXPECT_EQ(makeSet({task(2), task(1)}), firstObjects());
+  // An object that arrives after the index is built goes by its score.
+  assignment.moveTo(task(5), host(0));
+  EXPECT_EQ(makeSet({task(5), task(1)}), firstObjects());
+  assignment.moveTo(task(1), host(1));
+  EXPECT_EQ(makeSet({task(5), task(3)}), firstObjects());
+}
+
 CO_TEST_F(AssignmentTest, IndexedObjects) {
   const entities::Map<std::string, std::vector<std::string>> initialAssignment =
       {{

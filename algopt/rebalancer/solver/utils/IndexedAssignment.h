@@ -34,12 +34,15 @@
 
 namespace facebook::rebalancer {
 
-template <typename IndexType, typename SecondaryIndexType = std::nullopt_t>
+template <
+    typename IndexType,
+    typename SecondaryIndexType = std::nullopt_t,
+    typename StorageType = PackerSet<entities::ObjectId>>
 class IndexedAssignment {
   using ObjectStoreType = typename std::conditional_t<
       std::is_same<SecondaryIndexType, std::nullopt_t>::value,
-      PackerSet<entities::ObjectId>,
-      PackerMap<SecondaryIndexType, PackerSet<entities::ObjectId>>>;
+      StorageType,
+      PackerMap<SecondaryIndexType, StorageType>>;
 
   using ObjectIdxType = typename std::conditional_t<
       std::is_same<SecondaryIndexType, std::nullopt_t>::value,
@@ -47,11 +50,15 @@ class IndexedAssignment {
       std::tuple<IndexType, SecondaryIndexType>>;
 
  public:
+  // Each index entry starts as a copy of emptyStorage, so it keeps the
+  // ordering that emptyStorage was created with.
   explicit IndexedAssignment(
       const PackerMap<entities::ContainerId, ObjectStore>&
           containerToObjectsDynamic,
       const std::function<ObjectIdxType(entities::ObjectId)>&
-          getObjectIndexFunc) {
+          getObjectIndexFunc,
+      StorageType emptyStorage = {})
+      : emptyStorage_(std::move(emptyStorage)) {
     for (auto& [containerId, objects] : containerToObjectsDynamic) {
       auto& indexedContainerObjects = containerToIndexedObjects_[containerId];
       for (auto objectId : objects) {
@@ -61,7 +68,9 @@ class IndexedAssignment {
         // constructed
         objectToIndex_.emplace(objectId, objectIdx);
         auto primaryIdx = getPrimaryIndex(objectIdx);
-        add(indexedContainerObjects[primaryIdx], objectId, objectIdx);
+        add(findOrAdd(indexedContainerObjects, primaryIdx),
+            objectId,
+            objectIdx);
       }
     }
   }
@@ -69,7 +78,9 @@ class IndexedAssignment {
   void setOn(entities::ObjectId objectId, entities::ContainerId containerId) {
     auto objIdx = getObjectIndex(objectId);
     auto primaryIdx = getPrimaryIndex(objIdx);
-    add(containerToIndexedObjects_[containerId][primaryIdx], objectId, objIdx);
+    add(findOrAdd(containerToIndexedObjects_[containerId], primaryIdx),
+        objectId,
+        objIdx);
   }
 
   void removeFrom(
@@ -117,30 +128,39 @@ class IndexedAssignment {
     return std::get<0>(objectIdx);
   }
 
+  template <typename Key, typename Value>
+  Value& findOrAdd(PackerMap<Key, Value>& map, const Key& key) const {
+    if constexpr (std::is_same_v<Value, StorageType>) {
+      return map.try_emplace(key, emptyStorage_).first->second;
+    } else {
+      return map[key];
+    }
+  }
+
   void add(
-      PackerSet<entities::ObjectId>& objectStore,
+      StorageType& objectStore,
       entities::ObjectId object,
       const ObjectIdxType& /*objectIdx*/) {
     objectStore.insert(object);
   }
 
   void remove(
-      PackerSet<entities::ObjectId>& objectStore,
+      StorageType& objectStore,
       entities::ObjectId object,
       const ObjectIdxType& /*objectIdx*/) {
     objectStore.erase(object);
   }
 
   void add(
-      PackerMap<SecondaryIndexType, PackerSet<entities::ObjectId>>& objectStore,
+      PackerMap<SecondaryIndexType, StorageType>& objectStore,
       entities::ObjectId object,
       const ObjectIdxType& objectIdx) {
     auto [_, secondaryIdx] = objectIdx;
-    objectStore[secondaryIdx].insert(object);
+    findOrAdd(objectStore, secondaryIdx).insert(object);
   }
 
   void remove(
-      PackerMap<SecondaryIndexType, PackerSet<entities::ObjectId>>& objectStore,
+      PackerMap<SecondaryIndexType, StorageType>& objectStore,
       entities::ObjectId object,
       const ObjectIdxType& objectIdx) {
     auto [_, secondaryIdx] = objectIdx;
@@ -158,6 +178,8 @@ class IndexedAssignment {
     }
   }
 
+  StorageType emptyStorage_;
+
   PackerMap<entities::ContainerId, PackerMap<IndexType, ObjectStoreType>>
       containerToIndexedObjects_;
 
@@ -165,7 +187,7 @@ class IndexedAssignment {
 };
 
 using AssignmentIndexedByEquivSet =
-    IndexedAssignment<entities::EquivalenceSetId>;
+    IndexedAssignment<entities::EquivalenceSetId, std::nullopt_t, ObjectStore>;
 using AssignmentIndexedByGroupId = IndexedAssignment<entities::GroupId>;
 using AssignmentIndexedByEquivSetAndGroupId =
     IndexedAssignment<entities::EquivalenceSetId, entities::GroupId>;

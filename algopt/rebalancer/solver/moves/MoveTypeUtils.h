@@ -17,10 +17,12 @@
 #include "algopt/rebalancer/algopt_common/Utils.h"
 #include "algopt/rebalancer/solver/moves/DestinationsToExploreGenerator.h"
 #include "algopt/rebalancer/solver/moves/ObjectsToExploreGenerator.h"
+#include "algopt/rebalancer/solver/utils/ObjectStore.h"
 #include "algopt/rebalancer/solver/utils/Problem.h"
 #include "algopt/rebalancer/solver/utils/Util.h"
 
 #include <folly/container/irange.h>
+#include <folly/CppAttributes.h>
 
 #include <optional>
 #include <tuple>
@@ -235,12 +237,13 @@ size_t calculateSwapRatio(
  *
  * The selected hotObject always anchors the hot bundle. When dimensionName is
  * configured, the side with the smaller objects is bundled to form the uneven
- * swap candidate. Throws if the required bundle cannot be formed from the
- * currently dynamic objects.
+ * swap candidate, and hotObjectsInEquivSet must hold the hot object's
+ * equivalence set in its container; otherwise it is not read. Throws if the
+ * required bundle cannot be formed from the currently dynamic objects.
  */
 std::vector<SwapCandidateImplicit> generateDimensionBasedSwapCandidates(
     const entities::Universe& universe,
-    const PackerSet<entities::ObjectId>& hotObjectsInEquivSet,
+    const ObjectStore* FOLLY_NULLABLE hotObjectsInEquivSet,
     entities::ObjectId hotObject,
     const ObjectStore& coldDynamicObjects,
     const std::optional<std::string>& dimensionName,

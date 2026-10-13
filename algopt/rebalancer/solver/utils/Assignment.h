@@ -183,6 +183,7 @@ class Assignment {
   PackerMap<entities::PartitionId, AssignmentIndexedByGroupId>
       partitionToPerContainerObjectIndexByGroups_;
 
+  std::shared_ptr<const ObjectScores> objectScores_;
   ObjectStore::Factory objectStoreFactory_;
 };
 } // namespace facebook::rebalancer

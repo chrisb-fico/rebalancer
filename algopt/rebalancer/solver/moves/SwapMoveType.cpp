@@ -131,7 +131,7 @@ MoveResult SwapMoveType::exploreAllAndGetBestResult(
 
   std::optional<std::string> dimensionName;
   std::optional<entities::ScopeItemId> dimensionScopeItemId;
-  PackerSet<entities::ObjectId> hotObjectsInEquivSet = {hotObject};
+  const ObjectStore* hotObjectsInEquivSet = nullptr;
   if (auto swapRatioDimension = config_.swapRatioDimension()) {
     dimensionName = folly::get_default(
         *swapRatioDimension->value(),
@@ -146,9 +146,9 @@ MoveResult SwapMoveType::exploreAllAndGetBestResult(
     const auto& hotObjectsByEquivalenceSet =
         problem.assignment.getObjectsIndexedByEquivSets(equivalenceSets)
             .getContainerObjects(hotContainer);
-    const auto* indexedHotObjectsInEquivSet =
+    hotObjectsInEquivSet =
         folly::get_ptr(hotObjectsByEquivalenceSet, hotEquivalenceSetId);
-    if (indexedHotObjectsInEquivSet == nullptr) {
+    if (hotObjectsInEquivSet == nullptr) {
       throw std::runtime_error(
           fmt::format(
               "Hot object {} is missing from dynamic equivalence set {} in container {}",
@@ -156,7 +156,6 @@ MoveResult SwapMoveType::exploreAllAndGetBestResult(
               hotEquivalenceSetId,
               hotContainer));
     }
-    hotObjectsInEquivSet = *indexedHotObjectsInEquivSet;
   }
 
   auto implicitCandidates = generateDimensionBasedSwapCandidates(

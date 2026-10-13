@@ -63,6 +63,7 @@ Assignment::Assignment(
     PackerSet<entities::ObjectId> fixedObjects,
     bool useDynamicObjectOrdering)
     : fixedObjects_(std::move(fixedObjects)),
+      objectScores_(objectScores),
       objectStoreFactory_(
           ObjectStore::Factory(
               std::move(objectScores),
@@ -210,8 +211,14 @@ void Assignment::buildIndexByEquivalentSets(
   auto getObjectIdxFunc = [&equivalenceSets](entities::ObjectId object) {
     return equivalenceSets.at(object);
   };
-  containerToEquivSetsToObjects_ =
-      AssignmentIndexedByEquivSet(containerToObjectsDynamic_, getObjectIdxFunc);
+  // Never access-ordered, so that reading the index does not change it: a read
+  // that stops partway moves an access-ordered store's cursor, and concurrent
+  // reads would then see orders that depend on thread timing.
+  containerToEquivSetsToObjects_ = AssignmentIndexedByEquivSet(
+      containerToObjectsDynamic_,
+      getObjectIdxFunc,
+      ObjectStore::Factory(objectScores_, /*useDynamicObjectOrdering=*/false)
+          .get());
   indexedEquivalenceSetsKey_ = equivalenceSets.getKey();
 }
 

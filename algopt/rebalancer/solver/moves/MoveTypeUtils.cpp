@@ -169,7 +169,7 @@ size_t calculateSwapRatio(
 
 std::vector<SwapCandidateImplicit> generateDimensionBasedSwapCandidates(
     const entities::Universe& universe,
-    const PackerSet<entities::ObjectId>& hotObjectsInEquivSet,
+    const ObjectStore* FOLLY_NULLABLE hotObjectsInEquivSet,
     entities::ObjectId hotObject,
     const ObjectStore& coldDynamicObjects,
     const std::optional<std::string>& dimensionName,
@@ -190,19 +190,27 @@ std::vector<SwapCandidateImplicit> generateDimensionBasedSwapCandidates(
         ObjectBundle({hotObject}), std::move(coldObjectBundles))};
   }
 
+  if (hotObjectsInEquivSet == nullptr) {
+    throw std::invalid_argument(
+        fmt::format(
+            "Hot object {} needs its equivalence set to swap by dimension {}",
+            hotObject,
+            *dimensionName));
+  }
+  const auto& hotObjects = *hotObjectsInEquivSet;
   const auto dimensionId = universe.getDimensionId(*dimensionName);
   folly::F14FastMap<size_t, SwapCandidateImplicit> candidatesPerHotBundleSize;
 
   const auto appendColdBundleForHotBundleSize =
-      [&candidatesPerHotBundleSize, &hotObjectsInEquivSet, hotObject](
+      [&candidatesPerHotBundleSize, &hotObjects, hotObject](
           const size_t hotBundleSize,
           const std::vector<entities::ObjectId>& coldObjectsInEquivSet,
           const entities::ObjectId coldObject,
           const size_t coldBundleSize) {
         auto candidateIt = candidatesPerHotBundleSize.find(hotBundleSize);
         if (candidateIt == candidatesPerHotBundleSize.end()) {
-          auto hotBundle = buildAnchoredBundle(
-              hotObjectsInEquivSet, hotObject, hotBundleSize);
+          auto hotBundle =
+              buildAnchoredBundle(hotObjects, hotObject, hotBundleSize);
           candidateIt =
               candidatesPerHotBundleSize
                   .emplace(
@@ -226,7 +234,7 @@ std::vector<SwapCandidateImplicit> generateDimensionBasedSwapCandidates(
     if (hotBundleSize != 1 && coldBundleSize != 1) {
       throw std::runtime_error("Expect either 1:k or k:1 bundles");
     }
-    if (hotObjectsInEquivSet.size() < hotBundleSize ||
+    if (hotObjects.size() < hotBundleSize ||
         coldObjectsInEquivSet.size() < coldBundleSize) {
       continue;
     }
