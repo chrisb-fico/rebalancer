@@ -47,12 +47,6 @@ class Assignment {
       PackerSet<entities::ObjectId> fixedObjects = {},
       bool useDynamicObjectOrdering = false);
 
-  void setOn(entities::ObjectId objectId, entities::ContainerId containerId);
-
-  void removeFrom(
-      entities::ObjectId objectId,
-      entities::ContainerId containerId);
-
   void moveTo(entities::ObjectId objectId, entities::ContainerId containerId);
 
   const ObjectStore& getObjects(entities::ContainerId containerId) const;
@@ -147,6 +141,9 @@ class Assignment {
   const ObjectStore::Factory& getObjectStoreFactory() const;
 
  private:
+  void add(entities::ObjectId objectId, entities::ContainerId containerId);
+  void remove(entities::ObjectId objectId, entities::ContainerId containerId);
+
   ObjectStore& getObjects(
       PackerMap<entities::ContainerId, ObjectStore>& containerToObjects,
       entities::ContainerId containerId);

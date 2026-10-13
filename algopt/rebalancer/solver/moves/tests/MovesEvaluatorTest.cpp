@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "algopt/rebalancer/algopt_common/TestUtils.h"
 #include "algopt/rebalancer/solver/expressions/Operators.h"
 #include "algopt/rebalancer/solver/expressions/tests/ExpressionUtils.h"
 #include "algopt/rebalancer/solver/moves/tests/MoveTestBase.h"
@@ -374,6 +375,64 @@ TEST_F(MovesEvaluatorTest, TestSatisfiesConstraints) {
     moveSet.insert(Move(object(2), container(2), container(1)));
     EXPECT_TRUE(evaluator.satisfiesConstraints(moveSet));
   }
+}
+
+TEST_F(MovesEvaluatorTest, ApplyRejectsIncompleteMoveBeforeChangingAssignment) {
+  setInitialAssignment(
+      {{"container1", {"object1"}}, {"container2", {"object2"}}});
+  const auto universe = buildUniverse();
+  const auto objectVector = makeObjectVector(
+      PackerMap<entities::ObjectId, double>{}, 1, 2, *universe);
+  const auto container1Objects = makeObjectLookup(objectVector, {container(1)});
+  createProblem(
+      /*objectiveTuple=*/{container1Objects},
+      /*constraint=*/const_expr(0, *universe));
+  auto& problem = getProblem();
+  const auto before = problem.assignment;
+
+  const ChangeSet changes({
+      Change(object(1), container(1), -1),
+      Change(object(1), container(2), 1),
+      Change(object(2), container(2), -1),
+  });
+  REBALANCER_EXPECT_RUNTIME_ERROR(
+      problem.apply(changes),
+      "mismatch between number of objects added and removed");
+
+  EXPECT_EQ(
+      before.getObjectToContainerMap(),
+      problem.assignment.getObjectToContainerMap());
+  for (const auto containerId : before.getContainers()) {
+    EXPECT_EQ(
+        toSet<entities::ObjectId>(before.getObjects(containerId)),
+        toSet<entities::ObjectId>(problem.assignment.getObjects(containerId)));
+  }
+  EXPECT_DOUBLE_EQ(1, problem.objective.getValue().get(0));
+}
+
+TEST_F(MovesEvaluatorTest, ApplyMoveWithAdditionBeforeRemoval) {
+  setInitialAssignment(
+      {{"container1", {"object1"}}, {"container2", {"object2"}}});
+  const auto universe = buildUniverse();
+  const auto objectVector = makeObjectVector(
+      PackerMap<entities::ObjectId, double>{}, 1, 2, *universe);
+  const auto container1Objects = makeObjectLookup(objectVector, {container(1)});
+  createProblem(
+      /*objectiveTuple=*/{container1Objects},
+      /*constraint=*/const_expr(0, *universe));
+  auto& problem = getProblem();
+
+  const ChangeSet changes({
+      Change(object(1), container(2), 1),
+      Change(object(1), container(1), -1),
+  });
+  problem.apply(changes);
+  EXPECT_EQ(container(2), problem.assignment.getContainer(object(1)));
+  EXPECT_DOUBLE_EQ(0, problem.objective.getValue().get(0));
+
+  problem.apply(changes.getInverse());
+  EXPECT_EQ(container(1), problem.assignment.getContainer(object(1)));
+  EXPECT_DOUBLE_EQ(1, problem.objective.getValue().get(0));
 }
 
 TEST_F(MovesEvaluatorTest, TryApplyUndoesConstraintViolation) {

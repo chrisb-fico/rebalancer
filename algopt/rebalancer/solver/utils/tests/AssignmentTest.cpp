@@ -294,16 +294,8 @@ CO_TEST_F(AssignmentTest, IndexedObjects) {
   checkExpectedMakeup(c1, {objects.at(1)}, {});
   checkExpectedMakeup(c2, {objects.at(3), objects.at(5)}, {objects.at(4)});
 
-  // Split rmove into remove and add actions and check things still work
-  // Remove actions
-  assignment.removeFrom(objects.at(4), c2);
-  assignment.removeFrom(objects.at(3), c2);
-  checkExpectedMakeup(c0, {}, {objects.at(0), objects.at(2)});
-  checkExpectedMakeup(c1, {objects.at(1)}, {});
-  checkExpectedMakeup(c2, {objects.at(5)}, {});
-  // Add actions
-  assignment.setOn(objects.at(4), c0);
-  assignment.setOn(objects.at(3), c1);
+  assignment.moveTo(objects.at(4), c0);
+  assignment.moveTo(objects.at(3), c1);
   checkExpectedMakeup(c0, {}, {objects.at(0), objects.at(2), objects.at(4)});
   checkExpectedMakeup(c1, {objects.at(1), objects.at(3)}, {});
   checkExpectedMakeup(c2, {objects.at(5)}, {});

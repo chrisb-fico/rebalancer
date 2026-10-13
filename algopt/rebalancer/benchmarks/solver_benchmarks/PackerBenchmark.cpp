@@ -50,8 +50,8 @@ int main(int argc, char** argv) {
   const entities::Universe universe{};
   const folly::Init init(&argc, &argv);
 
-  Assignment assignment;
-  assignment.setOn(packer::tests::object(0), packer::tests::container(0));
+  const Assignment assignment(
+      {{packer::tests::container(0), {packer::tests::object(0)}}});
   auto var = variable(
       packer::tests::object(0),
       packer::tests::container(0),

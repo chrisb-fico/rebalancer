@@ -342,17 +342,13 @@ ApplyStatus Problem::tryApply(
 }
 
 MoveResult Problem::applyChanges(const ChangeSet& changes) {
+  // Check for matching removals and additions before changing the assignment.
+  auto moves = MoveSet::fromChangeSet(changes);
   auto oldValue = objective.getValue();
 
-  for (auto& change : changes) {
+  for (const auto& change : changes) {
     if (change.getValue() == 1) {
-      assignment.setOn(change.getObject(), change.getContainer());
-    } else {
-      if (change.getValue() != -1) {
-        throw std::runtime_error(
-            fmt::format("Invalid change {}", change.toString()));
-      }
-      assignment.removeFrom(change.getObject(), change.getContainer());
+      assignment.moveTo(change.getObject(), change.getContainer());
     }
   }
 
@@ -370,7 +366,7 @@ MoveResult Problem::applyChanges(const ChangeSet& changes) {
   // MIP constraints (within the tolerance limits) so they must be valid as
   // well.
   return MoveResult::makeValid(
-      MoveSet::fromChangeSet(changes),
+      std::move(moves),
       std::move(oldValue),
       materializedProblem_->globalObjective.getValue());
 }

@@ -71,10 +71,9 @@ Assignment::Assignment(
   setContainerToObjectsMap(containerToObjects);
 }
 
-void Assignment::setOn(
+void Assignment::add(
     entities::ObjectId objectId,
     entities::ContainerId containerId) {
-  objectToContainer_.insert_or_assign(objectId, containerId);
   getObjects(containerToObjects_, containerId).insert(objectId);
 
   if (!fixedObjects_.contains(objectId)) {
@@ -94,10 +93,9 @@ void Assignment::setOn(
   }
 }
 
-void Assignment::removeFrom(
+void Assignment::remove(
     entities::ObjectId objectId,
     entities::ContainerId containerId) {
-  objectToContainer_.erase(objectId);
   getObjects(containerToObjects_, containerId).erase(objectId);
 
   if (!fixedObjects_.contains(objectId)) {
@@ -120,8 +118,10 @@ void Assignment::removeFrom(
 void Assignment::moveTo(
     entities::ObjectId objectId,
     entities::ContainerId containerId) {
-  removeFrom(objectId, getContainer(objectId));
-  setOn(objectId, containerId);
+  auto& currContainerId = objectToContainer_.at(objectId);
+  remove(objectId, currContainerId);
+  add(objectId, containerId);
+  currContainerId = containerId;
 }
 
 const ObjectStore& Assignment::getObjects(
