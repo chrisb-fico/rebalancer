@@ -33,19 +33,24 @@ GurobiExpression::GurobiExpression(
     const std::variant<GRBLinExpr, GRBQuadExpr>& expression)
     : expression_(expression) {}
 
-std::shared_ptr<ExpressionImpl> GurobiExpression::clone() const {
+std::shared_ptr<ExpressionImpl> GurobiExpression::clone() const try {
   return std::make_shared<GurobiExpression>(expression_);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiExpression::add(double constant) {
+void GurobiExpression::add(double constant) try {
   if (std::holds_alternative<GRBLinExpr>(expression_)) {
     std::get<GRBLinExpr>(expression_) += constant;
   } else {
     std::get<GRBQuadExpr>(expression_) += constant;
   }
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiExpression::add(std::shared_ptr<const ExpressionImpl> expression) {
+void GurobiExpression::add(
+    std::shared_ptr<const ExpressionImpl> expression) try {
   auto& other = dynamic_cast<const GurobiExpression&>(*expression).get();
   if (std::holds_alternative<GRBLinExpr>(expression_)) {
     if (std::holds_alternative<GRBLinExpr>(other)) {
@@ -61,65 +66,80 @@ void GurobiExpression::add(std::shared_ptr<const ExpressionImpl> expression) {
       std::get<GRBQuadExpr>(expression_) += std::get<GRBQuadExpr>(other);
     }
   }
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiExpression::multiply(double constant) {
+void GurobiExpression::multiply(double constant) try {
   if (std::holds_alternative<GRBLinExpr>(expression_)) {
     std::get<GRBLinExpr>(expression_) *= constant;
   } else {
     std::get<GRBQuadExpr>(expression_) *= constant;
   }
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 void GurobiExpression::multiply(
-    std::shared_ptr<const ExpressionImpl> expression) {
+    std::shared_ptr<const ExpressionImpl> expression) try {
   auto& other = dynamic_cast<const GurobiExpression&>(*expression).get();
   if (std::holds_alternative<GRBQuadExpr>(expression_)) {
-    throw std::runtime_error("non-quadratic expression");
+    throw SolverError("non-quadratic expression");
   }
   if (std::holds_alternative<GRBQuadExpr>(other)) {
-    throw std::runtime_error("non-quadratic expression");
+    throw SolverError("non-quadratic expression");
   }
   expression_ = std::get<GRBLinExpr>(expression_) * std::get<GRBLinExpr>(other);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-std::shared_ptr<RelationImpl> GurobiExpression::makeEqualZeroRelation() const {
+std::shared_ptr<RelationImpl> GurobiExpression::makeEqualZeroRelation() const
+    try {
   const bool isLinear = std::holds_alternative<GRBLinExpr>(expression_);
 
   return std::make_shared<GurobiRelation>(
       isLinear ? std::get<GRBLinExpr>(expression_) == 0
                : std::get<GRBQuadExpr>(expression_) == 0,
       isLinear);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::shared_ptr<RelationImpl> GurobiExpression::makeLessEqualZeroRelation()
-    const {
+    const try {
   const bool isLinear = std::holds_alternative<GRBLinExpr>(expression_);
 
   return std::make_shared<GurobiRelation>(
       isLinear ? std::get<GRBLinExpr>(expression_) <= 0
                : std::get<GRBQuadExpr>(expression_) <= 0,
       isLinear);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::shared_ptr<RelationImpl> GurobiExpression::makeGreaterEqualZeroRelation()
-    const {
+    const try {
   const bool isLinear = std::holds_alternative<GRBLinExpr>(expression_);
 
   return std::make_shared<GurobiRelation>(
       isLinear ? std::get<GRBLinExpr>(expression_) >= 0
                : std::get<GRBQuadExpr>(expression_) >= 0,
       isLinear);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-double GurobiExpression::getValue() const {
+double GurobiExpression::getValue() const try {
   if (std::holds_alternative<GRBLinExpr>(expression_)) {
     return std::get<GRBLinExpr>(expression_).getValue();
   }
   return std::get<GRBQuadExpr>(expression_).getValue();
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-double GurobiExpression::computeValue() const {
+double GurobiExpression::computeValue() const try {
   auto getVarValue = [](const auto& var) {
     auto varType = var.get(GRB_CharAttr_VType);
     const bool isBinaryOrInteger =
@@ -151,21 +171,27 @@ double GurobiExpression::computeValue() const {
   }
 
   return exprValue;
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-double GurobiExpression::getConstant() const {
+double GurobiExpression::getConstant() const try {
   if (std::holds_alternative<GRBLinExpr>(expression_)) {
     return std::get<GRBLinExpr>(expression_).getConstant();
   }
   return std::get<GRBQuadExpr>(expression_).getLinExpr().getConstant();
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiExpression::print() const {
+void GurobiExpression::print() const try {
   if (std::holds_alternative<GRBLinExpr>(expression_)) {
     std::cout << std::get<GRBLinExpr>(expression_) << std::endl;
   } else {
     std::cout << std::get<GRBQuadExpr>(expression_) << std::endl;
   }
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 const std::variant<GRBLinExpr, GRBQuadExpr>& GurobiExpression::get() const {

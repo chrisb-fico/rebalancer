@@ -17,6 +17,7 @@
 #ifdef REBALANCER_USE_XPRESS
 
 #include "algopt/lp/detail/xpress/XpressExpression.h"
+#include "algopt/lp/generic/SolverError.h"
 
 #include <fmt/format.h>
 
@@ -29,7 +30,7 @@ XpressVariable::XpressVariable(dashoptimization::XPRBvar variable, Type type)
 
 void XpressVariable::setLB(double lb) {
   if (hasThreshold()) {
-    throw std::runtime_error(
+    throw SolverError(
         fmt::format(
             "cannot set lower bound on a {} variable. Did you mean to set threshold?",
             type_));
@@ -43,7 +44,7 @@ void XpressVariable::setUB(double ub) {
 
 void XpressVariable::setThreshold(double threshold) {
   if (!hasThreshold()) {
-    throw std::runtime_error(
+    throw SolverError(
         fmt::format("cannot set threshold on a {} variable", type_));
   }
   variable_.setLim(threshold);

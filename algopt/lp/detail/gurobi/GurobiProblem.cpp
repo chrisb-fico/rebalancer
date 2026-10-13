@@ -349,7 +349,7 @@ std::string constrExprToString(
 
 namespace facebook::algopt::lp::detail {
 
-GurobiProblem::GurobiProblem()
+GurobiProblem::GurobiProblem() try
     : model_(GurobiEnvironment::get()->getEnv()),
       warmStartType_(GurobiWarmStartType::VARIABLE_HINT) {
   setTolerances(
@@ -360,51 +360,66 @@ GurobiProblem::GurobiProblem()
           .integer = 1e-5,
           .absgap = 1e-10,
           .relgap = 1e-4});
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-std::shared_ptr<VariableImpl> GurobiProblem::makeVar(const std::string& name) {
+std::shared_ptr<VariableImpl> GurobiProblem::makeVar(
+    const std::string& name) try {
   return std::make_shared<GurobiVariable>(
       addVar(-GRB_INFINITY, +GRB_INFINITY, 0, GRB_CONTINUOUS, name),
       VariableImpl::Type::CONTINUOUS);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::shared_ptr<VariableImpl> GurobiProblem::makeIntVar(
-    const std::string& name) {
+    const std::string& name) try {
   return std::make_shared<GurobiVariable>(
       addVar(-GRB_INFINITY, +GRB_INFINITY, 0, GRB_INTEGER, name),
       VariableImpl::Type::INTEGER);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::shared_ptr<VariableImpl> GurobiProblem::makeSemiContVar(
     const std::string& name,
-    double threshold) {
+    double threshold) try {
   return std::make_shared<GurobiVariable>(
       addVar(threshold, +GRB_INFINITY, 0, GRB_SEMICONT, name),
       VariableImpl::Type::SEMI_CONTINUOUS);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::shared_ptr<VariableImpl> GurobiProblem::makeSemiIntVar(
     const std::string& name,
-    double threshold) {
+    double threshold) try {
   return std::make_shared<GurobiVariable>(
       addVar(threshold, +GRB_INFINITY, 0, GRB_SEMIINT, name),
       VariableImpl::Type::SEMI_INTEGER);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::shared_ptr<VariableImpl> GurobiProblem::makeBoolVar(
-    const std::string& name) {
+    const std::string& name) try {
   return std::make_shared<GurobiVariable>(
       addVar(0, 1, 0, GRB_BINARY, name), VariableImpl::Type::BINARY);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::shared_ptr<ExpressionImpl> GurobiProblem::makeExpression(
-    double constant) const {
+    double constant) const try {
   return std::make_shared<GurobiExpression>(constant);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::shared_ptr<ConstraintImpl> GurobiProblem::newConstraint(
     std::shared_ptr<const RelationImpl> relation,
-    const std::string& name) {
+    const std::string& name) try {
   auto grbRel = dynamic_cast<const GurobiRelation&>(*relation);
 
   // add a quadratic constraint
@@ -415,13 +430,17 @@ std::shared_ptr<ConstraintImpl> GurobiProblem::newConstraint(
 
   return std::make_shared<GurobiConstraint>(
       model_.addConstr(grbRel.get(), name));
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 void GurobiProblem::deleteConstraint(
-    std::shared_ptr<ConstraintImpl> constraint) {
+    std::shared_ptr<ConstraintImpl> constraint) try {
   std::visit(
       [this](auto& c) { model_.remove(c); },
       dynamic_cast<GurobiConstraint&>(*constraint).get());
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 int GurobiProblem::getObjectiveSize() const {
@@ -431,7 +450,7 @@ int GurobiProblem::getObjectiveSize() const {
 std::shared_ptr<const ExpressionImpl> GurobiProblem::getObjectiveAt(
     int pos) const {
   if (pos >= getObjectiveSize()) {
-    throw std::runtime_error(
+    throw SolverError(
         fmt::format(
             "There are only {} objectives, but attempt to access objective at pos {}",
             getObjectiveSize(),
@@ -587,7 +606,7 @@ void GurobiProblem::setMultiObjective() {
   }
 }
 
-void GurobiProblem::multiObjectiveSolve() {
+void GurobiProblem::multiObjectiveSolve() try {
   if (!allExprsLinear(objectives_)) {
     // Gurobi does not support quadratic objectives in multi-objective solves,
     // so use custom implementation for that case
@@ -629,10 +648,12 @@ void GurobiProblem::multiObjectiveSolve() {
       break;
     }
   }
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 // Returns fingerprint of full Gurobi model (including all goals)
-std::optional<uint32_t> GurobiProblem::getModelFingerprint() {
+std::optional<uint32_t> GurobiProblem::getModelFingerprint() try {
   if (getObjectiveSize() > 1 && !allExprsLinear(objectives_)) {
     // only linear objectives are supported in Gurobi setObjectiveN
     XLOG(INFO)
@@ -678,16 +699,20 @@ std::optional<uint32_t> GurobiProblem::getModelFingerprint() {
         "Unexpected modelNumObj value {}", modelNumObj);
     return std::nullopt;
   }
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 void GurobiProblem::solveForObjectiveAt(
     int pos,
-    std::optional<double> timeLimit) {
+    std::optional<double> timeLimit) try {
   // set objective
   auto objective = getObjectiveAt(pos);
   setObjective(objective);
   setMultiObjectiveParameter(pos, std::nullopt);
   solveModel(timeLimit);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 void GurobiProblem::solveModel(std::optional<double> timeLimit) {
@@ -730,7 +755,7 @@ void GurobiProblem::setCallback(
   callback_ = callback;
 }
 
-thrift::ProblemStatus GurobiProblem::getSolveStatus() {
+thrift::ProblemStatus GurobiProblem::getSolveStatus() try {
   // For status code definitions:
   // https://www.gurobi.com/documentation/9.1/refman/optimization_status_codes.html#sec:StatusCodes
   auto status = model_.get(GRB_IntAttr::GRB_IntAttr_Status);
@@ -790,18 +815,18 @@ thrift::ProblemStatus GurobiProblem::getSolveStatus() {
 
     case GRB_LOADED:
       // asking for a status prior to solve is invalid
-      throw std::runtime_error(
-          "No solve status available before calling solve()");
+      throw SolverError("No solve status available before calling solve()");
     case GRB_INPROGRESS:
       // only applicable to async solves
-      throw std::runtime_error("Unexpected Gurobi status GRB_INPROGRESS");
+      throw SolverError("Unexpected Gurobi status GRB_INPROGRESS");
     default:
-      throw std::runtime_error(
-          fmt::format("Unknown Gurobi status code {}", status));
+      throw SolverError(fmt::format("Unknown Gurobi status code {}", status));
   }
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-thrift::ProblemResult GurobiProblem::getSolveResult() {
+thrift::ProblemResult GurobiProblem::getSolveResult() try {
   double bestBound = std::numeric_limits<double>::lowest();
   double bestObjective = std::numeric_limits<double>::lowest();
 
@@ -840,10 +865,12 @@ thrift::ProblemResult GurobiProblem::getSolveResult() {
   }
 
   return result;
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 // Returns attributes from current state of Gurobi model
-thrift::ProblemAttributes GurobiProblem::getProblemAttributes() {
+thrift::ProblemAttributes GurobiProblem::getProblemAttributes() try {
   thrift::ProblemAttributes problemAttributes;
   const auto numVars = model_.get(GRB_IntAttr::GRB_IntAttr_NumVars);
   const auto numConstrs = model_.get(GRB_IntAttr::GRB_IntAttr_NumConstrs);
@@ -868,6 +895,8 @@ thrift::ProblemAttributes GurobiProblem::getProblemAttributes() {
     problemAttributes.presolvedNonZeros() = presolveNnz_;
   }
   return problemAttributes;
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::optional<double> GurobiProblem::getScaledMaxCoefRatio() {
@@ -919,7 +948,7 @@ std::optional<double> GurobiProblem::getScaledMaxCoefRatio() {
 }
 
 std::optional<NumericalStabilityInfo> GurobiProblem::getNumericalStability(
-    bool computeExactKappa) {
+    bool computeExactKappa) try {
   model_.update();
 
   XLOG(INFO) << "Computing numerical stability info";
@@ -1043,6 +1072,8 @@ std::optional<NumericalStabilityInfo> GurobiProblem::getNumericalStability(
       info.exactKappa);
 
   return info;
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 template <class M, class K = typename M::key_type>
@@ -1076,7 +1107,7 @@ bool GurobiProblem::isValidHiddenParam(const std::string& name) {
   return kHiddenParameters.contains(name);
 }
 
-double GurobiProblem::getParameter(const std::string& name) {
+double GurobiProblem::getParameter(const std::string& name) try {
   auto intParam = getIntParamCode(name);
   if (intParam) {
     return model_.get(*intParam);
@@ -1087,10 +1118,12 @@ double GurobiProblem::getParameter(const std::string& name) {
     return model_.get(*doubleParam);
   }
 
-  throw std::runtime_error(fmt::format("Unknown parameter {}", name));
+  throw SolverError(fmt::format("Unknown parameter {}", name));
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiProblem::setParameter(const std::string& name, double value) {
+void GurobiProblem::setParameter(const std::string& name, double value) try {
   auto intParam = getIntParamCode(name);
   if (intParam) {
     auto oldValue = model_.get(*intParam);
@@ -1122,7 +1155,7 @@ void GurobiProblem::setParameter(const std::string& name, double value) {
     auto warmStartOverride = static_cast<int>(value);
     auto warmStartTypeOpt = getGurobiWarmStartType(warmStartOverride);
     if (!warmStartTypeOpt) {
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format(
               "Unknown value {} for parameter {}", warmStartOverride, name));
     }
@@ -1132,10 +1165,12 @@ void GurobiProblem::setParameter(const std::string& name, double value) {
     return;
   }
 
-  throw std::runtime_error(fmt::format("Unknown parameter {}", name));
+  throw SolverError(fmt::format("Unknown parameter {}", name));
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiProblem::setTolerances(const Tolerances& tol) {
+void GurobiProblem::setTolerances(const Tolerances& tol) try {
   const std::string constraintTolParamName = "GRB_FeasibilityTol";
   auto constraintTolVal = checkAndAdjustToleranceWithinRange(
       tol.constraint,
@@ -1157,9 +1192,11 @@ void GurobiProblem::setTolerances(const Tolerances& tol) {
   setParameter("GRB_FeasibilityTol", tol.constraint);
   // intentionally ignoring tol.relcut
   // intentionally ignoring tol.abscut
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-Tolerances GurobiProblem::getTolerances() {
+Tolerances GurobiProblem::getTolerances() try {
   return {
       .constraint = getParameter("GRB_FeasibilityTol"),
       .integer = getParameter("GRB_IntFeasTol"),
@@ -1168,23 +1205,32 @@ Tolerances GurobiProblem::getTolerances() {
       // intentionally ignoring tol.relcut
       // intentionally ignoring tol.abscut
   };
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiProblem::setLogfile(const std::string& filename) {
+void GurobiProblem::setLogfile(const std::string& filename) try {
   model_.set(GRB_StringParam::GRB_StringParam_LogFile, filename);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiProblem::saveToFile(const std::string& filename) {
+void GurobiProblem::saveToFile(const std::string& filename) try {
   model_.write(filename);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 void GurobiProblem::saveToFileWithObjectiveAt(
     int pos,
-    const std::string& filename) {
+    const std::string& filename) try {
   setObjective(objectives_.at(pos));
   saveToFile(filename);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiProblem::saveToFileWithAllObjectives(const std::string& filename) {
+void GurobiProblem::saveToFileWithAllObjectives(
+    const std::string& filename) try {
   if (!objectives_.empty()) {
     // Clear any objective already on the model so that re-installing is
     // idempotent and the previous objective doesn't linger as objective 0.
@@ -1198,12 +1244,15 @@ void GurobiProblem::saveToFileWithAllObjectives(const std::string& filename) {
     model_.update();
   }
   saveToFile(filename);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 void GurobiProblem::setDebugPath(const std::string& path) {
   debugPath_ = path;
 }
 
-void GurobiProblem::print(const std::vector<std::string>& substringsToMatch) {
+void GurobiProblem::print(
+    const std::vector<std::string>& substringsToMatch) try {
   // Gurobi follows lazy-update, that is the model is not updated
   // until explicitly asked to or if optimize is called.
   // Ensure that variable/constraint information is loaded to the model
@@ -1265,10 +1314,14 @@ void GurobiProblem::print(const std::vector<std::string>& substringsToMatch) {
       numVars,
       numConstraints,
       (1.0 * numOccurrences) / numConstraints);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiProblem::disableLogs() {
+void GurobiProblem::disableLogs() try {
   model_.set(GRB_IntParam::GRB_IntParam_OutputFlag, 0);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 void GurobiProblem::setTimeout(double solveTime) {
@@ -1277,7 +1330,7 @@ void GurobiProblem::setTimeout(double solveTime) {
 
 void GurobiProblem::addStartValue(
     std::shared_ptr<const VariableImpl> variable,
-    double value) {
+    double value) try {
   // Get the VariableImpl* from the shared_ptr,
   // cast to a GurobiVariable*,
   // then get the actual GRBVar from that
@@ -1292,6 +1345,8 @@ void GurobiProblem::addStartValue(
     gurobiVariable.set(GRB_DoubleAttr::GRB_DoubleAttr_VarHintVal, value);
     gurobiVariable.set(GRB_DoubleAttr::GRB_DoubleAttr_Start, value);
   }
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 int GurobiProblem::updatePresolvedNonZeros(
@@ -1382,7 +1437,7 @@ int GurobiProblem::CallbackWrapper::getPresolveNnz() const {
   return presolveNnz_;
 }
 
-std::optional<IIS> GurobiProblem::getIIS() {
+std::optional<IIS> GurobiProblem::getIIS() try {
   auto status = model_.get(GRB_IntAttr::GRB_IntAttr_Status);
   XLOG(INFO) << fmt::format(
       "Computing IIS, model status is {} ({})",
@@ -1402,7 +1457,7 @@ std::optional<IIS> GurobiProblem::getIIS() {
         "Actual model status is {} ({})", status, kModelStatusCodes.at(status));
   }
   if (status != GRB_INFEASIBLE) {
-    throw std::runtime_error(
+    throw SolverError(
         fmt::format(
             "getIIS should only be called for status GRB_INFEASIBLE, but status is {} ({})",
             status,
@@ -1446,11 +1501,15 @@ std::optional<IIS> GurobiProblem::getIIS() {
   delete[] variables;
 
   return iis;
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiProblem::replay(const std::string& fileName) const {
+void GurobiProblem::replay(const std::string& fileName) const try {
   GRBModel model(model_.getEnv(), fileName);
   model.optimize();
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 bool GurobiProblem::supportsNativeQuadratic() const {
@@ -1472,7 +1531,7 @@ bool GurobiProblem::supportsIndicatorConstraints() const {
 bool GurobiProblem::setIndicatorOnConstraint(
     Constraint& ctr,
     const Variable& binaryVar,
-    int dir) {
+    int dir) try {
   // Validate arguments before mutating the model so an invalid dir cannot
   // leave the model inconsistent (linear constraint removed, no indicator
   // added, caller's Constraint holding a stale handle).
@@ -1509,11 +1568,13 @@ bool GurobiProblem::setIndicatorOnConstraint(
   model_.remove(linCtr);
   gurobiCtr->setGenConstr(gc);
   return true;
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::optional<algopt::lp::Expression> GurobiProblem::addNativePwlConstraint(
     const algopt::lp::Expression& x,
-    const std::vector<std::pair<double, double>>& points) {
+    const std::vector<std::pair<double, double>>& points) try {
   if (points.size() < 2) {
     throw std::invalid_argument(
         fmt::format(
@@ -1574,10 +1635,12 @@ std::optional<algopt::lp::Expression> GurobiProblem::addNativePwlConstraint(
 
   return algopt::lp::Expression(
       std::make_shared<GurobiExpression>(GRBLinExpr(yVar)));
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::optional<algopt::lp::Expression> GurobiProblem::addNativeMaxConstraint(
-    const std::vector<algopt::lp::Expression>& inputs) {
+    const std::vector<algopt::lp::Expression>& inputs) try {
   if (inputs.empty()) {
     throw std::invalid_argument(
         "MAX constraint requires at least 1 input expression");
@@ -1624,6 +1687,8 @@ std::optional<algopt::lp::Expression> GurobiProblem::addNativeMaxConstraint(
 
   return algopt::lp::Expression(
       std::make_shared<GurobiExpression>(GRBLinExpr(resultVar)));
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 namespace {
@@ -1641,7 +1706,7 @@ thrift::VariableType gurobiVtypeToThrift(char vtype) {
     case GRB_SEMIINT:
       return thrift::VariableType::SEMI_INTEGER;
     default:
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format("Unknown Gurobi variable type '{}'", vtype));
   }
 }
@@ -1659,9 +1724,9 @@ char mapVarType(VariableImpl::Type type) {
     case VariableImpl::Type::SEMI_INTEGER:
       return GRB_SEMIINT;
     case VariableImpl::Type::UNSET:
-      throw std::runtime_error("Variable type UNSET in loadFromFastProblem");
+      throw SolverError("Variable type UNSET in loadFromFastProblem");
   }
-  throw std::runtime_error(
+  throw SolverError(
       fmt::format("Unknown variable type: {}", static_cast<int>(type)));
 }
 
@@ -1674,7 +1739,7 @@ char mapConstrSense(Relation::ConstantType sense) {
     case Relation::EQ_ZERO:
       return GRB_EQUAL;
   }
-  throw std::runtime_error(
+  throw SolverError(
       fmt::format("Unknown constraint sense: {}", static_cast<int>(sense)));
 }
 
@@ -1687,7 +1752,7 @@ thrift::ConstraintType gurobiSenseToThrift(char sense) {
     case GRB_GREATER_EQUAL:
       return thrift::ConstraintType::GEQ_ZERO;
     default:
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format("Unknown Gurobi constraint sense '{}'", sense));
   }
 }
@@ -1726,7 +1791,7 @@ thrift::GenericExpression quadExprToThrift(
 
 } // namespace
 
-lp::thrift::GenericProblem GurobiProblem::toThrift() const {
+lp::thrift::GenericProblem GurobiProblem::toThrift() const try {
   model_.update();
 
   lp::thrift::GenericProblem problem;
@@ -1811,6 +1876,8 @@ lp::thrift::GenericProblem GurobiProblem::toThrift() const {
   }
 
   return problem;
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 namespace {
@@ -1838,7 +1905,7 @@ GRBLinExpr buildLinExpr(
 
 } // namespace
 
-void GurobiProblem::loadFromFastProblem(const FastProblemImpl& fast) {
+void GurobiProblem::loadFromFastProblem(const FastProblemImpl& fast) try {
   if (!objectives_.empty()) {
     throw std::invalid_argument(
         "loadFromFastProblem must be called on a fresh GurobiProblem");
@@ -1954,10 +2021,12 @@ void GurobiProblem::loadFromFastProblem(const FastProblemImpl& fast) {
   XLOG(INFO) << "Fast build transfer: " << numObjectives << " goals, "
              << totalObjTerms << " total goal terms";
   model_.update();
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 folly::F14FastMap<std::string, double> GurobiProblem::getSolvedVariableValues()
-    const {
+    const try {
   const auto numVars = static_cast<int>(loadedVarNames_.size());
   CHECK_EQ(numVars, model_.get(GRB_IntAttr_NumVars))
       << "getSolvedVariableValues requires loadFromFastProblem to have "
@@ -1972,7 +2041,7 @@ folly::F14FastMap<std::string, double> GurobiProblem::getSolvedVariableValues()
     auto [it, inserted] = result.emplace(
         std::move(loadedVarNames_[grbVarId]), varValues[grbVarId]);
     if (!inserted) {
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format(
               "Duplicate variable name '{}' detected in Gurobi model at index {}. "
               "Previous value: {}, new value: {}. "
@@ -1986,6 +2055,8 @@ folly::F14FastMap<std::string, double> GurobiProblem::getSolvedVariableValues()
   loadedVarNames_.clear();
   loadedVarNames_.shrink_to_fit();
   return result;
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 } // namespace facebook::algopt::lp::detail

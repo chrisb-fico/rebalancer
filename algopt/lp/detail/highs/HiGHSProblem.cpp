@@ -121,7 +121,7 @@ std::shared_ptr<VariableImpl> HiGHSProblem::makeVar(
           highs_.changeColIntegrality(colIndex, HighsVarType::kSemiInteger));
       break;
     default:
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format("unknown variable type {}", static_cast<int>(type)));
   }
 
@@ -216,7 +216,7 @@ int HiGHSProblem::getObjectiveSize() const {
 std::shared_ptr<const ExpressionImpl> HiGHSProblem::getObjectiveAt(
     int pos) const {
   if (pos >= getObjectiveSize()) {
-    throw std::runtime_error(
+    throw SolverError(
         fmt::format(
             "There are only {} objectives, but attempt to access objective at pos {}",
             getObjectiveSize(),
@@ -368,7 +368,7 @@ thrift::ProblemStatus HiGHSProblem::getSolveStatus() {
     case HighsModelStatus::kSolutionLimit:
       return thrift::ProblemStatus::SOLUTION_NOT_FOUND;
     default:
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format(
               "unknown HiGHS status code {}", static_cast<int>(status)));
   }
@@ -455,7 +455,7 @@ void HiGHSProblem::saveToFile(const std::string& filename) {
           supportedExtensions.begin(),
           supportedExtensions.end(),
           [&](const auto& ext) { return ext == extension; })) {
-    throw std::runtime_error(
+    throw SolverError(
         fmt::format(
             "Unsupported file extension {}. Supported extensions are: {}",
             extension.string(),
@@ -468,17 +468,16 @@ void HiGHSProblem::saveToFile(const std::string& filename) {
 void HiGHSProblem::saveToFileWithObjectiveAt(
     int /*pos*/,
     const std::string& /*filename*/) {
-  throw std::runtime_error(
-      "saveToFileWithObjectiveAt not implemented for HiGHS.");
+  throw SolverError("saveToFileWithObjectiveAt not implemented for HiGHS.");
 }
 
 void HiGHSProblem::setDebugPath(const std::string& /*path*/) {
-  throw std::runtime_error("setDebugPath not implemented for HiGHS.");
+  throw SolverError("setDebugPath not implemented for HiGHS.");
 }
 
 void HiGHSProblem::print(
     const std::vector<std::string>& /*substringsToMatch*/) {
-  throw std::runtime_error("print is not yet implemented for HiGHS.");
+  throw SolverError("print is not yet implemented for HiGHS.");
 }
 
 void HiGHSProblem::disableLogs() {
@@ -563,7 +562,7 @@ std::optional<IIS> HiGHSProblem::getIIS() {
 }
 
 void HiGHSProblem::replay(const std::string& /* fileName */) const {
-  throw std::runtime_error("replay is not yet implemented for HiGHS.");
+  throw SolverError("replay is not yet implemented for HiGHS.");
 }
 
 } // namespace facebook::algopt::lp::detail

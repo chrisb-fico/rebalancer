@@ -32,7 +32,7 @@ void GurobiEnvironment::make(
     const std::string& name,
     const std::string& app_name,
     const std::string& expiration,
-    const std::string& key) {
+    const std::string& key) try {
   if (self_) {
     throw std::runtime_error("GurobiEnvironment already initialized");
   }
@@ -52,14 +52,20 @@ void GurobiEnvironment::make(
   // This ensures isInitialized() only returns true when the environment is
   // ready to use
   self_ = std::move(temp_env);
+} catch (const GRBException& e) {
+  detail::rethrowGurobiError(e);
 }
 
-void GurobiEnvironment::hideOutput() {
+void GurobiEnvironment::hideOutput() try {
   self_->getEnv().set(GRB_IntParam_OutputFlag, 0);
+} catch (const GRBException& e) {
+  detail::rethrowGurobiError(e);
 }
 
-void GurobiEnvironment::showOutput() {
+void GurobiEnvironment::showOutput() try {
   self_->getEnv().set(GRB_IntParam_OutputFlag, 1);
+} catch (const GRBException& e) {
+  detail::rethrowGurobiError(e);
 }
 
 std::shared_ptr<GurobiEnvironment> GurobiEnvironment::get() {

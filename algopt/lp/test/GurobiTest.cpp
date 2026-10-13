@@ -23,6 +23,7 @@
 #include "algopt/lp/factory/ProblemFactory.h"
 #include "algopt/lp/generic/Expression.h"
 #include "algopt/lp/generic/Operators.h"
+#include "algopt/lp/generic/SolverError.h"
 #include "algopt/rebalancer/algopt_common/TestUtils.h"
 
 #include <gtest/gtest.h>
@@ -37,6 +38,7 @@ TEST(GurobiTest, LongVariableName) {
   REBALANCER_EXPECT_RUNTIME_ERROR(
       problem.makeVar(std::string(256, 'a')),
       "Name too long (maximum name length is 255 characters)");
+  EXPECT_THROW(problem.makeVar(std::string(256, 'a')), SolverError);
 }
 
 TEST(GurobiTest, ToThriftVariables) {

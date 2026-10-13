@@ -18,6 +18,7 @@
 #include "algopt/lp/generic/Expression.h"
 #include "algopt/lp/generic/Operators.h"
 #include "algopt/lp/generic/Problem.h"
+#include "algopt/lp/generic/SolverError.h"
 #include "algopt/rebalancer/algopt_common/TestUtils.h"
 
 #include <fmt/format.h>
@@ -646,6 +647,12 @@ void runTest(const std::function<Problem()>& factory) {
   testMultiObjective(factory);
 }
 
+void testUnknownParameter(const std::function<Problem()>& factory) {
+  Problem problem = factory();
+  EXPECT_THROW(problem.getParameter("NO_SUCH_PARAMETER"), SolverError);
+  EXPECT_THROW(problem.setParameter("NO_SUCH_PARAMETER", 1), SolverError);
+}
+
 void verifyModelFingerprint(
     const std::function<Problem()>& factory,
     bool expectedToExist) {
@@ -666,6 +673,7 @@ TEST(EndToEndTest, Xpress) {
   testQuadraticExpressions(ProblemFactory::makeXpressProblem);
   testQuadraticConstraints(ProblemFactory::makeXpressProblem);
   testQuadraticLPModel(ProblemFactory::makeXpressProblem);
+  testUnknownParameter(ProblemFactory::makeXpressProblem);
   verifyModelFingerprint(ProblemFactory::makeXpressProblem, false);
 }
 
@@ -703,6 +711,7 @@ TEST(EndToEndTest, Gurobi) {
   testQuadraticConstraints(ProblemFactory::makeGurobiProblem);
   testQuadraticLPModel(ProblemFactory::makeGurobiProblem);
   testIIS(ProblemFactory::makeGurobiProblem);
+  testUnknownParameter(ProblemFactory::makeGurobiProblem);
   verifyModelFingerprint(ProblemFactory::makeGurobiProblem, true);
   testCompactPrinting(ProblemFactory::makeGurobiProblem);
 }
@@ -760,6 +769,7 @@ TEST(EndToEndTest, DecomposableGurobi) {
 TEST(EndToEndTest, HiGHS) {
   runTest(ProblemFactory::makeHiGHSProblem);
   testLogging(ProblemFactory::makeHiGHSProblem);
+  testUnknownParameter(ProblemFactory::makeHiGHSProblem);
   verifyModelFingerprint(ProblemFactory::makeHiGHSProblem, false);
 }
 

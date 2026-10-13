@@ -16,10 +16,6 @@
 
 namespace facebook::algopt::lp::detail {
 
-HiGHSError::HiGHSError(const std::string& msg) : message(msg) {}
-
-const char* HiGHSError::what() const noexcept {
-  return message.c_str();
-}
+HiGHSError::HiGHSError(const std::string& msg) : SolverError(msg) {}
 
 } // namespace facebook::algopt::lp::detail

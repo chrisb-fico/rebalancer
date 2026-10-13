@@ -14,7 +14,8 @@
 
 #pragma once
 
-#include <stdexcept>
+#include "algopt/lp/generic/SolverError.h"
+
 #include <string>
 
 #ifdef REBALANCER_USE_HIGHS
@@ -49,17 +50,9 @@
 
 namespace facebook::algopt::lp::detail {
 
-// Define a custom exception class inheriting from std::exception
-class HiGHSError : public std::exception {
- private:
-  std::string message;
-
+class HiGHSError : public SolverError {
  public:
-  // Constructor to initialize the error message
   explicit HiGHSError(const std::string& msg);
-
-  // Override the what() method to return the custom error message
-  const char* what() const noexcept override;
 };
 
 } // namespace facebook::algopt::lp::detail

@@ -17,6 +17,7 @@
 #include "algopt/lp/detail/highs/HiGHSExpression.h"
 
 #include "algopt/lp/detail/highs/HiGHSRelation.h"
+#include "algopt/lp/generic/SolverError.h"
 
 #include <folly/container/irange.h>
 
@@ -67,7 +68,7 @@ void HiGHSExpression::multiply(
   const auto& rhs = dynamic_cast<const HiGHSExpression&>(*expression);
 
   if (!quadraticCoeffs_.empty() || !rhs.quadraticCoeffs_.empty()) {
-    throw std::runtime_error(
+    throw SolverError(
         "Multiplication of a quadratic expression by non-constant is not supported");
   }
 

@@ -20,6 +20,19 @@
 
 #ifdef REBALANCER_USE_GUROBI
 
+#include "algopt/lp/generic/SolverError.h"
+
 #include <gurobi_c++.h>
+
+namespace facebook::algopt::lp::detail {
+
+// Every Gurobi entry point reachable through the generic interface rethrows
+// GRBException through here, so callers see the same SolverError whatever the
+// backend. The message is kept as Gurobi's own, which callers already match.
+[[noreturn]] inline void rethrowGurobiError(const GRBException& e) {
+  throw SolverError(e.getMessage());
+}
+
+} // namespace facebook::algopt::lp::detail
 
 #endif

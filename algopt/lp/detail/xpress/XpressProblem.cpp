@@ -20,6 +20,7 @@
 #include "algopt/lp/detail/xpress/XpressExpression.h"
 #include "algopt/lp/detail/xpress/XpressRelation.h"
 #include "algopt/lp/detail/xpress/XpressVariable.h"
+#include "algopt/lp/generic/SolverError.h"
 #include "algopt/rebalancer/algopt_common/thrift/ThriftUtils.h"
 #include "algopt/rebalancer/algopt_common/Timer.h"
 
@@ -412,7 +413,7 @@ const std::map<std::string_view, int> kDoubleParamCodes = {
 
 #undef REBALANCER_XPRS_PARAM
 
-// Throws std::runtime_error if rc != 0, appending the Xpress error string.
+// Throws SolverError if rc != 0, appending the Xpress error string.
 // Centralises the repeated XPRSgetlasterror + throw pattern across all new
 // native-constraint API calls.
 static void throwIfXpressError(int rc, XPRSprob xprob, const std::string& msg) {
@@ -421,7 +422,8 @@ static void throwIfXpressError(int rc, XPRSprob xprob, const std::string& msg) {
   }
   char errBuf[512] = {};
   XPRSgetlasterror(xprob, errBuf);
-  throw std::runtime_error(fmt::format("{} (rc={}): {}", msg, rc, errBuf));
+  throw facebook::algopt::lp::SolverError(
+      fmt::format("{} (rc={}): {}", msg, rc, errBuf));
 }
 
 } // namespace
@@ -498,7 +500,7 @@ XpressProblem::makeVar(const std::string& name, int xprbType, double lb) {
       case XPRB_BV:
         return VariableImpl::Type::BINARY;
       default:
-        throw std::runtime_error(
+        throw SolverError(
             fmt::format("unknown xpress variable type {}", xprbType));
     }
   };
@@ -525,7 +527,7 @@ int XpressProblem::getObjectiveSize() const {
 std::shared_ptr<const ExpressionImpl> XpressProblem::getObjectiveAt(
     int pos) const {
   if (pos >= getObjectiveSize()) {
-    throw std::runtime_error(
+    throw SolverError(
         fmt::format(
             "There are only {} objectives, but attempt to access objective at pos {}",
             getObjectiveSize(),
@@ -747,8 +749,7 @@ thrift::ProblemStatus XpressProblem::getSolveStatus() {
     case XPRS_MIP_LP_NOT_OPTIMAL:
       return thrift::ProblemStatus::SOLUTION_NOT_FOUND;
     default:
-      throw std::runtime_error(
-          fmt::format("unknown xpress status code {}", status));
+      throw SolverError(fmt::format("unknown xpress status code {}", status));
   }
 }
 
@@ -801,7 +802,7 @@ double XpressProblem::getParameter(const std::string& name) {
   if (intParam) {
     int value;
     if (XPRSgetintcontrol(problem_.getXPRSprob(), *intParam, &value)) {
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format("could not get int parameter {} {}", name, *intParam));
     }
     return value;
@@ -810,13 +811,13 @@ double XpressProblem::getParameter(const std::string& name) {
   if (doubleParam) {
     double value;
     if (XPRSgetdblcontrol(problem_.getXPRSprob(), *doubleParam, &value)) {
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format(
               "could not get double parameter {} {}", name, *doubleParam));
     }
     return value;
   }
-  throw std::runtime_error(fmt::format("unknown parameter {}", name));
+  throw SolverError(fmt::format("unknown parameter {}", name));
 }
 
 void XpressProblem::setMultiObjectiveParameter(int index) {
@@ -834,7 +835,7 @@ void XpressProblem::setParameter(const std::string& name, double value) {
   if (intParam) {
     if (XPRSsetintcontrol(
             problem_.getXPRSprob(), *intParam, static_cast<int>(value))) {
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format("could not set int parameter {} {}", name, *intParam));
     }
     XLOG(INFO) << fmt::format(
@@ -844,7 +845,7 @@ void XpressProblem::setParameter(const std::string& name, double value) {
   const auto doubleParam = getDoubleParamCode(name);
   if (doubleParam) {
     if (XPRSsetdblcontrol(problem_.getXPRSprob(), *doubleParam, value)) {
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format(
               "could not set double parameter {} {}", name, *doubleParam));
     }
@@ -852,7 +853,7 @@ void XpressProblem::setParameter(const std::string& name, double value) {
         "Updating XPRESS param {} from {} to {}", name, oldValue, value);
     return;
   }
-  throw std::runtime_error(fmt::format("unknown parameter {}", name));
+  throw SolverError(fmt::format("unknown parameter {}", name));
 }
 
 void XpressProblem::setLogfile(const std::string& filename) {
@@ -871,7 +872,7 @@ void XpressProblem::saveToFile(const std::string& filename) {
   } else if (extension == ".svf") {
     XPRSsaveas(problem_.getXPRSprob(), extensionless.c_str());
   } else {
-    throw std::runtime_error(
+    throw SolverError(
         "File type not supported, for Xpress, expected .lp/.mps/.svf");
   }
 }
@@ -990,7 +991,7 @@ void XpressProblem::addStartValue(
       warmStartStatus = thrift::WarmStartStatus::SOLUTION_IS_DROPPED;
       break;
     default:
-      throw std::runtime_error(
+      throw SolverError(
           fmt::format(
               "Unknown xpress status code {} for warm-start processing",
               processingStatus));
@@ -1080,7 +1081,7 @@ void XpressProblem::applyNativePwlConstraints(XPRSprob xprob) {
     const auto* xVar = dynamic_cast<const XpressVariable*>(spec.xVar.get());
     const auto* yVar = dynamic_cast<const XpressVariable*>(spec.yVar.get());
     if (xVar == nullptr || yVar == nullptr) {
-      throw std::runtime_error(
+      throw SolverError(
           "Native PWL constraint requires XpressVariable operands, but a "
           "non-Xpress VariableImpl was provided");
     }
@@ -1116,7 +1117,7 @@ void XpressProblem::applyNativeMaxConstraints(XPRSprob xprob) {
     const auto* resultVar =
         dynamic_cast<const XpressVariable*>(spec.resultVar.get());
     if (resultVar == nullptr) {
-      throw std::runtime_error(
+      throw SolverError(
           "Native MAX constraint requires an XpressVariable result, but a "
           "non-Xpress VariableImpl was provided");
     }
@@ -1127,7 +1128,7 @@ void XpressProblem::applyNativeMaxConstraints(XPRSprob xprob) {
       const auto* inputVar =
           dynamic_cast<const XpressVariable*>(inputImpl.get());
       if (inputVar == nullptr) {
-        throw std::runtime_error(
+        throw SolverError(
             "Native MAX constraint requires XpressVariable inputs, but a "
             "non-Xpress VariableImpl was provided");
       }
@@ -1328,7 +1329,7 @@ std::optional<IIS> XpressProblem::getIIS() {
 }
 
 void XpressProblem::replay(const std::string& /* fileName */) const {
-  throw std::runtime_error("read from file is not implemented");
+  throw SolverError("read from file is not implemented");
   // Unfortunately, the Xpress C++ API does not seem to provide a direct way to
   // do this
   // https://www.fico.com/fico-xpress-optimization/docs/dms2021-01/bcl/dhtml/Cpp-XPRBprob.html

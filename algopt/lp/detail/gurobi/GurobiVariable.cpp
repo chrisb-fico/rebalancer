@@ -28,26 +28,32 @@ GurobiVariable::GurobiVariable(GRBVar variable, Type type)
   type_ = type;
 }
 
-void GurobiVariable::setLB(double lb) {
+void GurobiVariable::setLB(double lb) try {
   if (hasThreshold()) {
-    throw std::runtime_error(
+    throw SolverError(
         fmt::format(
             "cannot set lower bound on a {} variable. Did you mean to set threshold?",
             type_));
   }
   variable_.set(GRB_DoubleAttr::GRB_DoubleAttr_LB, lb);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiVariable::setUB(double ub) {
+void GurobiVariable::setUB(double ub) try {
   variable_.set(GRB_DoubleAttr::GRB_DoubleAttr_UB, ub);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
-void GurobiVariable::setThreshold(double threshold) {
+void GurobiVariable::setThreshold(double threshold) try {
   if (!hasThreshold()) {
-    throw std::runtime_error(
+    throw SolverError(
         fmt::format("cannot set threshold on a {} variable", type_));
   }
   variable_.set(GRB_DoubleAttr::GRB_DoubleAttr_LB, threshold);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 void GurobiVariable::setPartition(int /* partitionId */) {
@@ -64,13 +70,17 @@ void GurobiVariable::setPartition(int /* partitionId */) {
   // variable_.set(GRB_IntAttr_Partition, partitionId);
 }
 
-double GurobiVariable::getValue() const {
+double GurobiVariable::getValue() const try {
   return variable_.get(GRB_DoubleAttr::GRB_DoubleAttr_X);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 std::shared_ptr<ExpressionImpl> GurobiVariable::makeExpression(
-    double coeff) const {
+    double coeff) const try {
   return std::make_shared<GurobiExpression>(coeff * variable_);
+} catch (const GRBException& e) {
+  rethrowGurobiError(e);
 }
 
 const GRBVar& GurobiVariable::get() const {
