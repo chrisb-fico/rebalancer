@@ -70,6 +70,13 @@ class AssignmentTest : public ExpressionTestsBase {
   }
 };
 
+TEST_F(AssignmentTest, EmptyObjects) {
+  const Assignment assignment;
+  const auto objects = assignment.getObjects();
+  EXPECT_TRUE(objects.empty());
+  EXPECT_EQ(0, objects.size());
+}
+
 TEST_F(AssignmentTest, DynamicObjects) {
   const entities::Map<std::string, std::vector<std::string>> initialAssignment =
       {{
@@ -83,6 +90,12 @@ TEST_F(AssignmentTest, DynamicObjects) {
       universe->getContainers().getInitialAssignment(),
       {},
       {object(1000), object(1003)});
+
+  const auto objects = assignment.getObjects();
+  const auto expectedObjects =
+      makeSet({object(1000), object(1001), object(1002), object(1003)});
+  EXPECT_EQ(expectedObjects, makeSet(objects));
+  EXPECT_EQ(expectedObjects.size(), objects.size());
 
   // Get all objects.
   EXPECT_EQ(
@@ -104,6 +117,7 @@ TEST_F(AssignmentTest, DynamicObjects) {
 
   // Update assignment.
   assignment.moveTo(object(1001), container(101));
+  EXPECT_EQ(expectedObjects, makeSet(objects));
 }
 
 TEST_F(AssignmentTest, EquivalenceIndexGetterRejectsOtherKeys) {

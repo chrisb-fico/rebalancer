@@ -141,14 +141,6 @@ bool Assignment::isDynamic(entities::ObjectId objectId) const {
       !fixedObjects_.contains(objectId);
 }
 
-std::vector<entities::ObjectId> Assignment::getObjects() const {
-  std::vector<entities::ObjectId> objects;
-  for (auto& [objectId, containerId] : objectToContainer_) {
-    objects.push_back(objectId);
-  }
-  return objects;
-}
-
 ChangeSet Assignment::getChanges() const {
   ChangeSet changes;
   for (auto& [objectId, containerId] : objectToContainer_) {

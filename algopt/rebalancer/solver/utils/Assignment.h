@@ -61,7 +61,10 @@ class Assignment {
 
   entities::ContainerId getContainer(entities::ObjectId objectId) const;
 
-  std::vector<entities::ObjectId> getObjects() const;
+  // The assignment must outlive the returned view.
+  auto getObjects() const {
+    return std::views::keys(objectToContainer_);
+  }
 
   inline auto getContainers() const {
     return std::views::keys(containerToObjects_);
