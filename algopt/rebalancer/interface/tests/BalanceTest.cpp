@@ -1494,7 +1494,9 @@ TEST_P(BalanceTest, RelativeUtilVarianceWithRelativeUtilBound) {
   spec.scope() = "host";
   spec.dimension() = "cpu";
   spec.formula() = BalanceSpecFormula::RELATIVE_UTIL_VARIANCE;
-  spec.upperBound() = 0.7;
+  auto& upperBounds = spec.upperBounds().ensure();
+  upperBounds.type() = LimitType::ABSOLUTE;
+  upperBounds.globalLimit() = 0.7;
   spec.boundType() = BalanceSpecBoundType::RELATIVE_UTIL;
   solver->addGoal(spec);
 
