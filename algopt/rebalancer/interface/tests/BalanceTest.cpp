@@ -1135,7 +1135,9 @@ TEST_P(BalanceTest, IdealWithRelativeUpperBound) {
   spec.scope() = "host";
   spec.dimension() = "cpu";
   spec.formula() = BalanceSpecFormula::IDEAL;
-  spec.upperBound() = 1.4;
+  auto& upperBounds = spec.upperBounds().ensure();
+  upperBounds.type() = LimitType::ABSOLUTE;
+  upperBounds.globalLimit() = 1.4;
   spec.ignoreUpperBoundForIdealWithAbsOrRelBoundTypes() = false;
   solver->addGoal(spec);
 
