@@ -25,23 +25,28 @@
 
 namespace facebook::rebalancer {
 
-MoveResult AsyncSingleMovesMoveType::findBestMove(
+namespace {
+// Evaluates moving each hot object to each accepting cold container.
+template <typename HotObjects>
+MoveResult findBestMoveOfHotObjects(
+    AsyncSingleMovesMoveType& moveType,
+    const HotObjects& hotObjects,
     const MovesEvaluator& evaluator,
     entities::ContainerId hotContainer,
     MoveStatsAggregator& stats,
-    const SearchHints& /*hints*/,
     double timeLimit) {
-  auto& dynamicObjects = evaluator.getDynamicObjects(hotContainer);
-  const auto numObjects = static_cast<int>(dynamicObjects.size());
+  const auto numObjects =
+      static_cast<int>(evaluator.getDynamicObjects(hotContainer).size());
   auto& problem = evaluator.getProblem();
-  const auto dedupedObjs =
-      ObjectDeduper(&problem.getEquivalenceSets(), dynamicObjects);
-  auto customColdContainers = getCustomColdContainers(evaluator, hotContainer);
+  auto customColdContainers =
+      moveType.getCustomColdContainers(evaluator, hotContainer);
 
   // Create filtered collections for objects and containers
   auto filteredObjects = Filter(
-      dedupedObjs, [this, &evaluator, numObjects](entities::ObjectId object) {
-        return attemptMoveWithThisObject(evaluator, object, numObjects);
+      hotObjects,
+      [&moveType, &evaluator, numObjects](entities::ObjectId object) {
+        return moveType.attemptMoveWithThisObject(
+            evaluator, object, numObjects);
       });
 
   auto filteredContainers = Filter(
@@ -57,13 +62,13 @@ MoveResult AsyncSingleMovesMoveType::findBestMove(
           filteredObjects,
           /* container2 */ filteredContainers,
           /* workFunc - processes each (hotObject, coldContainer) pair */
-          [this, &timer, timeLimit, &evaluator, &stats, hotContainer](
+          [&moveType, &timer, timeLimit, &evaluator, &stats, hotContainer](
               entities::ObjectId hotObject,
               entities::ContainerId coldContainer) {
             if (timer.getSeconds() >= timeLimit) {
               return MoveResult::makeEmpty();
             }
-            return exploreFromAllSingleMoves(
+            return moveType.exploreFromAllSingleMoves(
                 evaluator, hotContainer, hotObject, coldContainer, stats);
           },
           /* accumulateFunc - merges batch results into final result */
@@ -73,7 +78,36 @@ MoveResult AsyncSingleMovesMoveType::findBestMove(
           /* initResultFunc - creates empty result for accumulation */
           []() { return MoveResult::makeEmpty(); },
           /* givenExecutor - thread pool for parallel execution */
-          evaluator.getProblem().configs.threadPool));
+          problem.configs.threadPool));
+}
+} // namespace
+
+MoveResult AsyncSingleMovesMoveType::findBestMove(
+    const MovesEvaluator& evaluator,
+    entities::ContainerId hotContainer,
+    MoveStatsAggregator& stats,
+    const SearchHints& /*hints*/,
+    double timeLimit) {
+  const auto& problem = evaluator.getProblem();
+  if (usesEquivalenceIndex()) {
+    return findBestMoveOfHotObjects(
+        *this,
+        problem.assignment.getDistinctObjectsFromEquivSetIdx(
+            hotContainer, problem.getEquivalenceSets()),
+        evaluator,
+        hotContainer,
+        stats,
+        timeLimit);
+  }
+  return findBestMoveOfHotObjects(
+      *this,
+      ObjectDeduper(
+          &problem.getEquivalenceSets(),
+          evaluator.getDynamicObjects(hotContainer)),
+      evaluator,
+      hotContainer,
+      stats,
+      timeLimit);
 }
 
 std::optional<PackerSet<entities::ContainerId>>

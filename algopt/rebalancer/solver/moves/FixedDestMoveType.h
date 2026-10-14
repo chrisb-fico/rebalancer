@@ -59,6 +59,10 @@ class FixedDestMoveType : public SingleMoveType {
       entities::ObjectId objectId,
       int numObjects) const override;
 
+  bool usesEquivalenceIndex() const override {
+    return true;
+  }
+
   bool getSamplingStatus(int numObjects) const;
 
   MoveResult findBestMoveWithBundleOptions(

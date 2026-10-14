@@ -248,6 +248,10 @@ const AssignmentIndexedByEquivSet& Assignment::getObjectsIndexedByEquivSets(
 std::vector<entities::ObjectId> Assignment::getDistinctObjectsFromEquivSetIdx(
     const entities::ContainerId& containerId,
     const EquivalenceSets& equivalenceSets) const {
+  // The index may have no entry for an empty container.
+  if (getDynamicObjects(containerId).empty()) {
+    return {};
+  }
   const auto& equivSetsToObjects = getObjectsIndexedByEquivSets(equivalenceSets)
                                        .getContainerObjects(containerId);
   std::vector<entities::ObjectId> distinctObjectIds;

@@ -59,5 +59,13 @@ class AsyncSingleMovesMoveType : public MoveType {
       const MovesEvaluator& evaluator,
       entities::ObjectId objectId,
       int numObjectsInContainer) const;
+
+ protected:
+  // Whether findBestMove lists the hot objects from the equivalence index
+  // instead of running ObjectDeduper over the hot container. The index lists
+  // from the store's start instead of its cursor.
+  virtual bool usesEquivalenceIndex() const {
+    return false;
+  }
 };
 } // namespace facebook::rebalancer

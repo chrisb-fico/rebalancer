@@ -182,6 +182,22 @@ TEST_F(AssignmentTest, EquivalenceIndexPutsTopScoredObjectOfEachSetFirst) {
   EXPECT_EQ(makeSet({task(5), task(3)}), firstObjects());
 }
 
+TEST_F(AssignmentTest, DistinctObjectsOfContainerWithoutObjectsAreEmpty) {
+  const entities::Map<std::string, std::vector<std::string>> initialAssignment =
+      {{{"host0", {"task0", "task1"}}}};
+  setInitialAssignment(initialAssignment);
+  const auto universe = buildUniverse();
+  Assignment assignment(universe->getContainers().getInitialAssignment());
+  EquivalenceSets sets(*universe);
+  sets.finalize();
+  assignment.buildIndexByEquivalentSets(sets);
+
+  EXPECT_TRUE(
+      assignment
+          .getDistinctObjectsFromEquivSetIdx(entities::ContainerId(1000), sets)
+          .empty());
+}
+
 CO_TEST_F(AssignmentTest, IndexedObjects) {
   const entities::Map<std::string, std::vector<std::string>> initialAssignment =
       {{
