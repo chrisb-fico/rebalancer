@@ -23,7 +23,6 @@
 #include <folly/container/irange.h>
 #include <folly/container/MapUtil.h>
 
-#include <bit>
 #include <cstdint>
 #include <utility>
 #include <vector>
