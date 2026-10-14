@@ -3097,7 +3097,9 @@ TEST_P(PackerProblemTestSolvers, TestBalance) {
     BalanceSpec balanceSpec;
     balanceSpec.scope() = "container";
     balanceSpec.dimension() = "units";
-    balanceSpec.upperBound() = 0.05;
+    auto& upperBounds = balanceSpec.upperBounds().ensure();
+    upperBounds.type() = LimitType::ABSOLUTE;
+    upperBounds.globalLimit() = 0.05;
     balanceSpec.boundType() = BalanceSpecBoundType::ABSOLUTE;
 
     Filter filter;
