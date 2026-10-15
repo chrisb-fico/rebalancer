@@ -22,6 +22,7 @@
 #include <folly/executors/task_queue/LifoSemMPMCQueue.h>
 #include <folly/executors/thread_factory/NamedThreadFactory.h>
 #include <folly/synchronization/AtomicUtil.h>
+#include <folly/synchronization/Latch.h>
 #include <folly/Try.h>
 #include <gtest/gtest.h>
 
@@ -279,6 +280,30 @@ TEST(ExecuteParallelBatchTest, MaxConcurrencyLimitsConsumers) {
 
   EXPECT_EQ(result, 5050);
   EXPECT_EQ(workerThreads.size(), 1);
+}
+
+TEST(ExecuteParallelBatchTest, SmallInputRunsConcurrently) {
+  CPUThreadPoolExecutor executor(4);
+  std::vector<int> inputs(8);
+  std::iota(inputs.begin(), inputs.end(), 0);
+  // The first two inputs only finish if they run at the same time, which a
+  // single batch holding all eight inputs would not allow.
+  folly::Latch bothStarted(2);
+  const std::function<int(int)> process = [&](int input) {
+    if (input < 2) {
+      bothStarted.count_down();
+      if (!bothStarted.try_wait_for(std::chrono::seconds(10))) {
+        throw std::runtime_error("inputs did not run concurrently");
+      }
+    }
+    return input;
+  };
+  const auto initialize = []() { return 0; };
+  const auto aggregate = [](int& acc, int&& val) { acc += val; };
+
+  EXPECT_EQ(
+      executeParallelBatch(&executor, inputs, process, initialize, aggregate),
+      28);
 }
 
 TEST(ExecuteParallelBatchTest, RejectsZeroMaxConcurrency) {

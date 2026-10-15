@@ -48,13 +48,42 @@ inline MoveResult MoveHelper::findBest(
     return run();
   }
 
+  // Batching picks its single-batch fallback by input count, and one input can
+  // run zero or many evaluations, so count inputs alongside the result.
+  struct CountedResult {
+    MoveResult result = MoveResult::makeEmpty();
+    size_t inputs = 0;
+  };
+  struct AggregateCounted {
+    void operator()(CountedResult& acc, MoveResult&& result) const noexcept {
+      acc.result.aggregate(std::move(result));
+      ++acc.inputs;
+    }
+    void operator()(CountedResult& acc, CountedResult&& other) const noexcept {
+      acc.result.aggregate(std::move(other.result));
+      acc.inputs += other.inputs;
+    }
+  };
+
   const algopt::Timer timer(true);
-  auto result = run();
-  executionSelector.record(
-      {.evaluations = result.getEvalsCount(),
-       .durationSecs = timer.getSeconds()},
-      moveTypeName);
-  return result;
+  auto counted = execute(
+      executor,
+      inputs,
+      evaluate,
+      []() noexcept { return CountedResult{}; },
+      AggregateCounted{},
+      timeout,
+      executionSelector);
+  const double durationSecs = timer.getSeconds();
+  // A call that fits in one batch runs on a sliding window under both
+  // strategies, so it cannot tell them apart.
+  if (!fitsInOneBatch(counted.inputs, executionSelector.batchingOptions())) {
+    executionSelector.record(
+        {.evaluations = counted.result.getEvalsCount(),
+         .durationSecs = durationSecs},
+        moveTypeName);
+  }
+  return std::move(counted.result);
 }
 
 template <

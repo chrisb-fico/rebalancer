@@ -148,6 +148,14 @@ struct BatchingExecutionOptions {
   std::optional<size_t> maxConcurrency;
 };
 
+// executeParallelBatch runs a call with this many inputs on a sliding window
+// instead of in batches, so both strategies execute it the same way.
+inline bool fitsInOneBatch(
+    const size_t inputs,
+    const BatchingExecutionOptions& options) {
+  return inputs <= options.batchSize;
+}
+
 // Sliding window parallel execution: maintains up to windowSize concurrent
 // tasks, submitting new work as prior tasks complete. Best for forward-only
 // iterators and streaming inputs where collection size is unknown.
@@ -266,7 +274,10 @@ auto executeParallelWindow(
 
 // Batch-based parallel execution: groups items into fixed-size batches
 // and distributes them to consumer threads via a queue. Best for large
-// collections where batch processing amortizes queue contention.
+// collections where batch processing amortizes queue contention. A collection
+// that fits in one batch (see fitsInOneBatch) runs one task per input instead,
+// up to the same concurrency, since one consumer would process all of it
+// serially.
 template <
     class Collection,
     class ProcessFn,
@@ -297,6 +308,29 @@ auto executeParallelBatch(
   const auto executorConcurrency = std::max(size_t{1}, executor->numThreads());
   const auto numConsumers = std::min(
       executorConcurrency, config.maxConcurrency.value_or(executorConcurrency));
+  const size_t batchSize = config.batchSize;
+
+  auto it = collection.begin();
+  const auto end = collection.end();
+  auto firstBatch = std::make_unique<std::vector<Input>>();
+  firstBatch->reserve(batchSize);
+  for (; it != end && firstBatch->size() < batchSize; ++it) {
+    firstBatch->push_back(*it);
+  }
+  // A Timeout collection can expire after the emptiness check above.
+  if (firstBatch->empty()) {
+    return initialize();
+  }
+  if (it == end) {
+    return executeParallelWindow(
+        executor,
+        firstBatch->begin(),
+        firstBatch->end(),
+        process,
+        initialize,
+        aggregate,
+        static_cast<int>(std::min(firstBatch->size(), numConsumers)));
+  }
 
   using BatchPtr = detail::BatchPtr<Input>;
   folly::MPMCQueue<BatchPtr> queue(detail::kQueueCapacity);
@@ -338,9 +372,7 @@ auto executeParallelBatch(
     });
   }
 
-  auto it = collection.begin();
-  const auto end = collection.end();
-  const size_t batchSize = config.batchSize;
+  queue.blockingWrite(std::move(firstBatch));
 
   while (it != end) {
     auto batch = pool.allocate();

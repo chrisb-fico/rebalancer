@@ -25,6 +25,7 @@
 #include <random>
 #include <set>
 #include <thread>
+#include <utility>
 
 using namespace folly;
 using namespace std;
@@ -188,8 +189,11 @@ TEST(MoveHelperTest, FindBestFeedsAutoSelectorUntilItLocks) {
         {});
   };
 
+  // AUTO only counts calls with more than one batch.
+  interface::AutoExecutionConfig autoConfig;
+  autoConfig.batching()->batchSize() = 1;
   interface::ParallelExecutionConfig execSpec;
-  execSpec.set_autoExecution(interface::AutoExecutionConfig{});
+  execSpec.set_autoExecution(std::move(autoConfig));
   ParallelExecutionSelector executionSelector(execSpec);
 
   constexpr int kMaxCalls = 100;
@@ -201,6 +205,54 @@ TEST(MoveHelperTest, FindBestFeedsAutoSelectorUntilItLocks) {
     ++calls;
   }
   EXPECT_FALSE(executionSelector.isExploring());
+}
+
+TEST(MoveHelperTest, FindBestAutoCountsInputsNotEvaluations) {
+  CPUThreadPoolExecutor executor(4);
+  const auto makeEvaluation = [] {
+    return MoveResult::makeValid(
+        MoveSet(), GlobalObjectiveValue({0}), GlobalObjectiveValue({0}), {});
+  };
+
+  interface::AutoExecutionConfig autoConfig;
+  autoConfig.batching()->batchSize() = 4;
+  interface::ParallelExecutionConfig execSpec;
+  execSpec.set_autoExecution(std::move(autoConfig));
+  ParallelExecutionSelector executionSelector(execSpec);
+
+  // Four inputs fit in one batch even though they run eight evaluations, so
+  // AUTO does not count the call.
+  const std::function<MoveResult(int)> evaluateTwice = [&](int /* input */) {
+    auto result = makeEvaluation();
+    result.aggregate(makeEvaluation());
+    return result;
+  };
+  MoveHelper::findBest(
+      &executor,
+      vector<int>{0, 1, 2, 3},
+      evaluateTwice,
+      10,
+      executionSelector,
+      "test");
+  EXPECT_EQ(
+      executionSelector.strategy(),
+      ParallelExecutionSelector::Strategy::SlidingWindow);
+
+  // Five inputs need two batches even though only one runs an evaluation, so
+  // AUTO counts the call and tries batching next.
+  const std::function<MoveResult(int)> evaluateFirst = [&](int input) {
+    return input == 0 ? makeEvaluation() : MoveResult::makeEmpty();
+  };
+  MoveHelper::findBest(
+      &executor,
+      vector<int>{0, 1, 2, 3, 4},
+      evaluateFirst,
+      10,
+      executionSelector,
+      "test");
+  EXPECT_EQ(
+      executionSelector.strategy(),
+      ParallelExecutionSelector::Strategy::Batching);
 }
 
 TEST(MoveHelperTest, FindBestWithNulloptUsesDefault) {
