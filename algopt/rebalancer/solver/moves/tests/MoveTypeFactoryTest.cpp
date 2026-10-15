@@ -42,6 +42,8 @@
 #include <gtest/gtest.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 
+#include <utility>
+
 using namespace facebook::rebalancer;
 using namespace facebook::rebalancer::interface;
 
@@ -137,6 +139,28 @@ TEST_F(MoveTypeFactoryTest, createLSSSAndSetMoveTypeListWithMixedTypes) {
   // creation should happen
   auto moves = MoveTypeFactory::createMoveTypes(spec, getProblem());
   EXPECT_EQ(moves.size(), 2);
+}
+
+TEST_F(MoveTypeFactoryTest, rolloutDefaultsUnsetParallelExecutionToAuto) {
+  LocalSearchSolverSpec spec;
+  spec.moveTypeList()->push_back(
+      ProblemSolver::makeMoveTypeSpec(SingleMoveTypeSpec()));
+  const auto isExploring = [&] {
+    const auto moves = MoveTypeFactory::createMoveTypes(spec, getProblem());
+    return std::as_const(*moves.front())
+        .parallelExecutionSelector()
+        .isExploring();
+  };
+
+  EXPECT_FALSE(isExploring());
+
+  getProblem().configs.useAutoParallelExecution = true;
+  EXPECT_TRUE(isExploring());
+
+  // An explicit config wins over the rollout default.
+  spec.parallelExecutionConfig().emplace().set_slidingWindow(
+      SlidingWindowExecutionConfig{});
+  EXPECT_FALSE(isExploring());
 }
 
 // Round-trips through the serializer so the spec carries the presence bits a

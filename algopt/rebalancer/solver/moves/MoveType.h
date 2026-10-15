@@ -70,6 +70,10 @@ class MoveType {
       std::vector<MoveResult> results,
       const MoveStatsAggregator& stats);
 
+  const ParallelExecutionSelector& parallelExecutionSelector() const {
+    return parallelExecutionSelector_;
+  }
+
  protected:
   // Accessor methods for subclasses
   int32_t minHotObjects() const {

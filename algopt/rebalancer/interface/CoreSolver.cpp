@@ -435,6 +435,8 @@ ProblemConfigs CoreSolver::makeProblemConfig(
   problemConfig.validateAppliedMoves = *problemSpec.validateAppliedMoves();
   problemConfig.rolloutPruneOptimalSubgraphs =
       *problemSpec.rolloutConfig()->pruneOptimalSubgraphs();
+  problemConfig.useAutoParallelExecution =
+      *problemSpec.rolloutConfig()->useAutoParallelExecution();
 
   if (auto decompositionScopeName = problemSpec.decompositionScopeName()) {
     problemConfig.decompositionScopeName = *decompositionScopeName;

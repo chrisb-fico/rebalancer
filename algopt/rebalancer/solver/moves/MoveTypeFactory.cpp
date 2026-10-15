@@ -40,6 +40,7 @@
 #include "algopt/rebalancer/solver/moves/SwapMoveType.h"
 #include "algopt/rebalancer/solver/moves/SwapNMoveType.h"
 #include "algopt/rebalancer/solver/moves/TripleLoopMoveType.h"
+#include "algopt/rebalancer/solver/utils/Problem.h"
 
 #include <fmt/core.h>
 
@@ -190,6 +191,14 @@ std::unique_ptr<MoveType> MoveTypeFactory::createMoveType(
 std::vector<std::shared_ptr<MoveType>> MoveTypeFactory::createMoveTypes(
     const interface::LocalSearchSolverSpec& spec,
     const Problem& problem) {
+  if (!spec.parallelExecutionConfig() &&
+      problem.configs.useAutoParallelExecution) {
+    auto autoSpec = spec;
+    autoSpec.parallelExecutionConfig().emplace().set_autoExecution(
+        interface::AutoExecutionConfig{});
+    return createMoveTypes(autoSpec, problem);
+  }
+
   const auto& moveTypes = *spec.moveTypeList();
   std::vector<std::shared_ptr<MoveType>> moves;
   moves.reserve(moveTypes.size());

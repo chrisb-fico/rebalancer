@@ -45,6 +45,10 @@ struct RolloutConfig {
 
   4: bool useIncrementalPriorityQueueV2 = false;
 
+  // Local-search solvers without a parallelExecutionConfig use AUTO instead of
+  // sliding-window execution.
+  5: bool useAutoParallelExecution = false;
+
   // Temporary setting used to test saving, replaying, and logging a MetaConfig
   // value.
   32767: bool testOnlyConfig = false;

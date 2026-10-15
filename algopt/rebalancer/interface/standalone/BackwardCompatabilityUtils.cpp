@@ -59,6 +59,9 @@ void fillMissingRolloutConfigValues(interface::RolloutConfig& config) {
   fillMissingValue(
       config.useIncrementalPriorityQueueV2(),
       interface::kUseIncrementalPriorityQueueV2RolloutDefault);
+  fillMissingValue(
+      config.useAutoParallelExecution(),
+      interface::kUseAutoParallelExecutionRolloutDefault);
 }
 #endif
 
